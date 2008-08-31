@@ -1,0 +1,10 @@
+#!/bin/sh
+PNAME=audio
+VER=`sed -n 's/Version: \(.*\)/\1/p' DESCRIPTION`
+PDIR=`pwd`
+rm -rf /tmp/${PNAME}
+mkdir /tmp/${PNAME} && cp -r . /tmp/${PNAME} && \
+cd /tmp && (find ${PNAME}/ -name .svn -or -name \*~ | xargs rm -rf) && \
+tar fcz "${PDIR}/../${PNAME}_${VER}.tar.gz" ${PNAME}
+cd "${PDIR}"
+ls -l "../${PNAME}_${VER}.tar.gz"
