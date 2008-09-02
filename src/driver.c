@@ -50,15 +50,15 @@ extern audio_driver_t audiounits_audio_driver;
 void load_default_audio_driver()
 {
 #if HAS_WMM
-  current_driver = wmmaudio_audio_driver;
+  current_driver = &wmmaudio_audio_driver;
   return;
 #endif
 #if HAS_AU
-  current_driver = audiounits_audio_driver;
+  current_driver = &audiounits_audio_driver;
   return;
 #endif
 #if HAS_PA
-  current_driver = portaudio_audio_driver;
+  current_driver = &portaudio_audio_driver;
   return;
 #endif
   Rf_error("no audio drivers are available");
