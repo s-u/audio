@@ -1,21 +1,40 @@
 /* Audio device for R using PortAudio library
    Copyright(c) 2008 Simon Urbanek
 
-   Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-   * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use, copy,
+   modify, merge, publish, distribute, sublicense, and/or sell copies
+   of the Software, and to permit persons to whom the Software is
+   furnished to do so, subject to the following conditions:
+
+   * The above copyright notice and this permission notice shall be
+     included in all copies or substantial portions of the Software.
  
-   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ON INFRINGEMENT. 
-   IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND ON
+   INFRINGEMENT. 
+   IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR
+   ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+   CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+   WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  
-   The text above constitutes the entire license; however, the PortAudio community also makes the following non-binding requests:
-   * Any person wishing to distribute modifications to the Software is requested to send the modifications to the original developer so that they can be incorporated into the canonical version. It is also requested that these non-binding requests be included along with the license above.
+   The text above constitutes the entire license; however, the
+   PortAudio community also makes the following non-binding requests:
+
+   * Any person wishing to distribute modifications to the Software is
+     requested to send the modifications to the original developer so
+     that they can be incorporated into the canonical version. It is
+     also requested that these non-binding requests be included along
+     with the license above.
 
  */
 
-#define USE_RINTERNALS  /* for efficiency */
-#define R_NO_REMAP      /* to not pollute the namespace */
-#include <R.h>
-#include <Rinternals.h>
+#include "driver.h"
+#if HAS_PA
+
 #include "portaudio.h"
 
 #define kNumberOutputBuffers 2
@@ -30,6 +49,9 @@
 typedef signed short int SInt16;
 
 typedef struct play_info {
+	/* the following entries must be present since play_info_t inherits from audio_instance_t */
+	audio_driver_t *driver;  /* must point to the driver that created this */
+	int kind;                /* must be either AI_PLAYER or AI_RECORDER */
 /*
 	AudioQueueRef       queue;
 	AudioQueueBufferRef buffers[kNumberOutputBuffers];
@@ -189,63 +211,15 @@ static void portaudio_dispose(void *usr) {
 	free(usr);
 }
 
-typedef struct portaudio_audio {
-	void *(*create)(SEXP);
-	int (*start)(void *);
-	int (*pause)(void *);
-	int (*resume)(void *);
-	int (*close)(void *);
-	void (*dispose)(void *);
-} portaudio_audio_t;
-
-portaudio_audio_t portaudio_audio_driver = {
-portaudio_create_player,
-portaudio_start,
-portaudio_pause,
-portaudio_resume,
-portaudio_close,
-portaudio_dispose
+/* define the audio driver */
+audio_driver_t portaudio_audio_driver = {
+	portaudio_create_player,
+	0, /* recorder is currently unimplemented */
+	portaudio_start,
+	portaudio_pause,
+	portaudio_resume,
+	portaudio_close,
+	portaudio_dispose
 };
 
-portaudio_audio_t *current_driver = &portaudio_audio_driver;
-
-// FIXME: we need to wrap the driver in the SEXP as well ...
-
-SEXP audio_player(SEXP source) {
-	void *p = current_driver->create(source);
-	if (!p) Rf_error("cannot start audio driver");
-	SEXP ptr = R_MakeExternalPtr(p, R_NilValue, R_NilValue);
-	Rf_protect(ptr);
-	Rf_setAttrib(ptr, Rf_install("class"), Rf_mkString("audioDriver"));
-	Rf_unprotect(1);
-	return ptr;	
-}
-
-SEXP audio_start(SEXP driver) {
-	if (TYPEOF(driver) != EXTPTRSXP)
-		Rf_error("invalid audio driver");
-	void *p = EXTPTR_PTR(driver);
-	return Rf_ScalarLogical(current_driver->start(p));
-}
-
-SEXP audio_pause(SEXP driver) {
-	if (TYPEOF(driver) != EXTPTRSXP)
-		Rf_error("invalid audio driver");
-	void *p = EXTPTR_PTR(driver);
-	return Rf_ScalarLogical(current_driver->pause(p));
-}
-
-SEXP audio_resume(SEXP driver) {
-	if (TYPEOF(driver) != EXTPTRSXP)
-		Rf_error("invalid audio driver");
-	void *p = EXTPTR_PTR(driver);
-	return Rf_ScalarLogical(current_driver->resume(p));
-}
-
-SEXP audio_close(SEXP driver) {
-	if (TYPEOF(driver) != EXTPTRSXP)
-		Rf_error("invalid audio driver");
-	void *p = EXTPTR_PTR(driver);
-	return Rf_ScalarLogical(current_driver->close(p));
-}
-
+#endif

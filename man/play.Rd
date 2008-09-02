@@ -20,6 +20,6 @@ play(x, rate=44100)
 %  \code{\link{.jcall}}, \code{\link{.jnull}}
 %}
 \examples{
-play(sin(1:10000/1000))
+play(sin(1:10000/20))
 }
 \keyword{interface}

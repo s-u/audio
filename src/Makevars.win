@@ -1,0 +1,3 @@
+## --- on windows the only device compiled by default is wmm ---
+PKG_CPPFLAGS=-DHAS_WMM=1
+PKG_LIBS=-lwinmm
