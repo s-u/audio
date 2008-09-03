@@ -44,11 +44,12 @@ typedef struct wmm_instance {
 	/* the following entries must be present since play_info_t inherits from audio_instance_t */
 	audio_driver_t *driver;  /* must point to the driver that created this */
 	int kind;                /* must be either AI_PLAYER or AI_RECORDER */
+	SEXP source;
+	/* private entries */
 	HWAVEOUT hout;
 	char *bufOut[kNumberOutputBuffers];
 	WAVEHDR bufOutHdr[kNumberOutputBuffers];
 	float sample_rate;
-	SEXP source;
 	BOOL stereo, loop, done;
 	unsigned int position, length;
 } wmm_instance_t;
@@ -233,6 +234,12 @@ static int wmmaudio_resume(void *usr) {
 	return 1;
 }
 
+static int wmmaudio_rewind(void *usr) {
+	wmm_instance_t *p = (wmm_instance_t*) usr;
+	p->position = 0;
+	return 1;
+}
+
 static int wmmaudio_close(void *usr) {
 	wmm_instance_t *p = (wmm_instance_t*) usr;
 	p->done = YES;
@@ -256,11 +263,13 @@ static void wmmaudio_dispose(void *usr) {
 
 /* define the audio driver */
 audio_driver_t wmmaudio_audio_driver = {
+	"Windows MultiMedia audio driver",
 	wmmaudio_create_player,
 	0, /* recorder is currently unimplemented */
 	wmmaudio_start,
 	wmmaudio_pause,
 	wmmaudio_resume,
+	wmmaudio_rewind,
 	wmmaudio_close,
 	wmmaudio_dispose
 };

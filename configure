@@ -2623,6 +2623,63 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 LIBS="${PKG_LIBS}"
 
+# try AudioUnits
+save_LIBS="${LIBS}"
+LIBS="${LIBS} -framework AudioUnit -framework CoreServices"
+{ echo "$as_me:$LINENO: checking AudioUnits" >&5
+echo $ECHO_N "checking AudioUnits... $ECHO_C" >&6; }
+has_au=no
+
+cat >conftest.$ac_ext <<_ACEOF
+#include <AudioUnit/AudioUnit.h>
+int
+main ()
+{
+  Component comp = 0;
+  ComponentInstance outUnit;
+  OpenAComponent(comp, &outUnit);
+  AudioUnitInitialize(outUnit);
+  return 0;
+}
+
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
+  has_au=yes
+
+cat >>confdefs.h <<\_ACEOF
+#define HAS_AU 1
+_ACEOF
+
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
+{ echo "$as_me:$LINENO: result: ${has_au}" >&5
+echo "${ECHO_T}${has_au}" >&6; }
+
+# find PortAudio (first try pkg-config)
 : ${PKGCONFIG=pkg-config}
 if ${PKGCONFIG} --version >/dev/null 2>&1; then
    if ${PKGCONFIG} portaudio-2.0; then
@@ -2631,7 +2688,7 @@ if ${PKGCONFIG} --version >/dev/null 2>&1; then
    fi
 fi
 
-
+has_pa=no
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
 ac_compile='$CC -c $CFLAGS $CPPFLAGS conftest.$ac_ext >&5'
@@ -3489,6 +3546,7 @@ echo "${ECHO_T}$ac_cv_search_Pa_Initialize" >&6; }
 ac_res=$ac_cv_search_Pa_Initialize
 if test "$ac_res" != no; then
   test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+  has_pa=yes
 
 cat >>confdefs.h <<\_ACEOF
 #define HAS_PA 1
@@ -3502,6 +3560,7 @@ fi
 done
 
 
+# in any case configure produces config.h so we want to use it
 CPPFLAGS="-DHAS_CONFIG_H=1 ${CPPFLAGS}"
 
 ac_config_files="$ac_config_files src/Makevars"

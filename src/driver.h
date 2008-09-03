@@ -48,11 +48,13 @@
 
 /* define driver structure */
 typedef struct audio_driver {
+	const char *name;
 	struct audio_instance *(*create_player)(SEXP);
 	struct audio_instance *(*create_recorder)(SEXP);
 	int (*start)(void *);
 	int (*pause)(void *);
 	int (*resume)(void *);
+	int (*rewind)(void *);
 	int (*close)(void *);
 	void (*dispose)(void *);
 } audio_driver_t;
@@ -64,8 +66,9 @@ typedef struct audio_driver {
    are free to add their own fields, but those listed below must be
    common to all instances */
 typedef struct audio_instance {
-  audio_driver_t *driver;  /* must point to the driver that created this */
-  int kind;                /* must be either AI_PLAYER or AI_RECORDER */
+	audio_driver_t *driver;  /* must point to the driver that created this */
+	int kind;                /* must be either AI_PLAYER or AI_RECORDER */
+	SEXP source;             /* source (player) or target (recorder) */ 
 } audio_instance_t;
 
 #endif

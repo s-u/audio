@@ -1,5 +1,4 @@
 /* Audio device for R using AudioUnits (Mac OS X)
-   Note: this is now a skeleton only
    Copyright(c) 2008 Simon Urbanek
 
    Permission is hereby granted, free of charge, to any person
@@ -41,14 +40,21 @@
 #define kNumberOutputBuffers 3
 #define kOutputBufferSize 4096
 
+#ifndef YES
+#define BOOL int
+#define YES 1
+#define NO 0
+#endif
+
 typedef struct au_instance {
 	/* the following entries must be present since play_info_t inherits from audio_instance_t */
 	audio_driver_t *driver;  /* must point to the driver that created this */
 	int kind;                /* must be either AI_PLAYER or AI_RECORDER */
-	AudioUnit outUnit;
-	char *bufOut[kNumberOutputBuffers];
-	float sample_rate;
 	SEXP source;
+	/* private entries */
+	AudioUnit outUnit;
+	AudioStreamBasicDescription fmtOut;
+	float sample_rate;
 	BOOL stereo, loop, done;
 	unsigned int position, length;
 } au_instance_t;
@@ -89,66 +95,125 @@ static int primeBuffer(au_instance_t *ap, void *outputBuffer, unsigned int frame
 
 static OSStatus outputRenderProc(void *inRefCon, AudioUnitRenderActionFlags *inActionFlags, const AudioTimeStamp *inTimeStamp, UInt32 inBusNumber, UInt32 inNumFrames, AudioBufferList *ioData)
 {
-	au_instance_t *ap = (au_instance_t*) inRefCon;
-	// ioData->mBuffers[0].mDataByteSize = amt;
+	au_instance_t *p = (au_instance_t*) inRefCon;
+	/* printf("outputRenderProc, (bufs=%d, buf[0].chs=%d), buf=%p, size=%d\n", ioData->mNumberBuffers, ioData->mBuffers[0].mNumberChannels, ioData->mBuffers[0].mData, ioData->mBuffers[0].mDataByteSize); */
+	int res = primeBuffer(p, ioData->mBuffers[0].mData, ioData->mBuffers[0].mDataByteSize / (p->stereo ? 4 : 2));
+	/* printf(" - primed: %d samples (%d bytes)\n", res, res * (p->stereo ? 4 : 2)); */
+	if (res < 0) res = 0;
+	ioData->mBuffers[0].mDataByteSize = res * (p->stereo ? 4 : 2);
+	if (res == 0) {
+		/* printf(" - no input, stopping unit\n"); */
+		AudioOutputUnitStop(p->outUnit);
+	}
+	return noErr;
 }
 
 static au_instance_t *audiounits_create_player(SEXP source) {
+	ComponentDescription desc = { kAudioUnitType_Output, kAudioUnitSubType_DefaultOutput, kAudioUnitManufacturer_Apple, 0, 0 };
+	Component comp; 
+	OSStatus err;
+	
 	au_instance_t *ap = (au_instance_t*) calloc(sizeof(au_instance_t), 1);
 	ap->source = source;
-	R_PreserveObject(ap->source);
 	ap->sample_rate = 44100.0;
 	ap->done = NO;
 	ap->position = 0;
 	ap->length = LENGTH(source);
 	ap->stereo = NO; // FIXME: support dim[2] = 2
 	ap->loop = NO;
+	memset(&ap->fmtOut, 0, sizeof(ap->fmtOut));
+	ap->fmtOut.mSampleRate = ap->sample_rate;
+	ap->fmtOut.mFormatID = kAudioFormatLinearPCM;
+	ap->fmtOut.mChannelsPerFrame = ap->stereo ? 2 : 1;
+	ap->fmtOut.mFormatFlags = kAudioFormatFlagIsSignedInteger | kAudioFormatFlagIsPacked;
+#if __ppc__ || __ppc64__ || __BIG_ENDIAN__
+	ap->fmtOut.mFormatFlags |= kAudioFormatFlagIsBigEndian;
+#endif
+	ap->fmtOut.mFramesPerPacket = 1;
+	ap->fmtOut.mBytesPerPacket = ap->fmtOut.mBytesPerFrame = ap->fmtOut.mFramesPerPacket * ap->fmtOut.mChannelsPerFrame * 2;
+	ap->fmtOut.mBitsPerChannel = 16;
 	if (ap->stereo) ap->length /= 2;
+	comp = FindNextComponent(NULL, &desc);
+	if (!comp) Rf_error("unable to find default audio output"); 
+	err = OpenAComponent(comp, &ap->outUnit);
+	if (err) Rf_error("unable to open default audio (%08x)", err);
+	err = AudioUnitInitialize(ap->outUnit);
+	if (err) {
+		CloseComponent(ap->outUnit);
+		Rf_error("unable to initialize default audio (%08x)", err);
+	}
+	R_PreserveObject(ap->source);
 	return ap;
 }
 
 static int audiounits_start(void *usr) {
-	au_instance_t *p = (au_instance_t*) usr;
-	p->done = NO;
-	/* open audio */
-	/* allocate and prime buffers */
+	au_instance_t *ap = (au_instance_t*) usr;
+	AURenderCallbackStruct renderCallback = { outputRenderProc, usr };
+	OSStatus err;
+	ap->done = NO;
+	/* set format */
+	ap->fmtOut.mSampleRate = ap->sample_rate;
+	err = AudioUnitSetProperty(ap->outUnit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, &ap->fmtOut, sizeof(ap->fmtOut));
+	if (err) Rf_error("unable to set output audio format (%08x)", err);
+	/* set callback */
+	err = AudioUnitSetProperty(ap->outUnit, kAudioUnitProperty_SetRenderCallback, kAudioUnitScope_Input, 0, &renderCallback, sizeof(renderCallback));
+	if (err) Rf_error("unable to register audio callback (%08x)", err);
+	/* start audio */
+	err = AudioOutputUnitStart(ap->outUnit);
+	if (err) Rf_error("unable to start playback (%08x)", err);
 	return 1;
 }
-	
 
 static int audiounits_pause(void *usr) {
 	au_instance_t *p = (au_instance_t*) usr;
+	return AudioOutputUnitStop(p->outUnit) ? 0 : 1;
+}
+
+static int audiounits_rewind(void *usr) {
+	au_instance_t *p = (au_instance_t*) usr;
+	p->position = 0;
 	return 1;
 }
 
 static int audiounits_resume(void *usr) {
 	au_instance_t *p = (au_instance_t*) usr;
-	return 1;
+	return AudioOutputUnitStart(p->outUnit) ? 0 : 1;
 }
 
 static int audiounits_close(void *usr) {
 	au_instance_t *p = (au_instance_t*) usr;
 	p->done = YES;
+	if (p->outUnit) {
+		AudioOutputUnitStop(p->outUnit);
+		AudioUnitUninitialize(p->outUnit);
+		CloseComponent(p->outUnit);
+		p->outUnit = 0;
+	}	
 	return 1;
 }
 
 static void audiounits_dispose(void *usr) {
 	au_instance_t *p = (au_instance_t*) usr;
+	if (p->outUnit) audiounits_close(usr);
+#if 0
 	int i = 0;
 	while (i < kNumberOutputBuffers) {
 		if (p->bufOut[i]) { free(p->bufOut[i]); p->bufOut[i] = 0; }
 		i++;
 	}
+#endif
 	free(usr);
 }
 
 /* define the audio driver */
 audio_driver_t audiounits_audio_driver = {
+	"AudioUnits (Mac OS X) driver",
 	audiounits_create_player,
 	0, /* recorder is currently unimplemented */
 	audiounits_start,
 	audiounits_pause,
 	audiounits_resume,
+	audiounits_rewind,
 	audiounits_close,
 	audiounits_dispose
 };

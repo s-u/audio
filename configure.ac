@@ -22,6 +22,26 @@ AC_PROG_CC
 
 LIBS="${PKG_LIBS}"
 
+# try AudioUnits
+save_LIBS="${LIBS}"
+LIBS="${LIBS} -framework AudioUnit -framework CoreServices"
+AC_MSG_CHECKING([AudioUnits])
+has_au=no
+AC_LINK_IFELSE([[#include <AudioUnit/AudioUnit.h>
+int
+main ()
+{
+  Component comp = 0; 
+  ComponentInstance outUnit;
+  OpenAComponent(comp, &outUnit);
+  AudioUnitInitialize(outUnit);
+  return 0;
+}
+]], [has_au=yes
+AC_DEFINE(HAS_AU, 1, [defined if AudioUnits are available])])
+AC_MSG_RESULT([${has_au}])
+
+# find PortAudio (first try pkg-config)
 : ${PKGCONFIG=pkg-config}
 if ${PKGCONFIG} --version >/dev/null 2>&1; then
    if ${PKGCONFIG} portaudio-2.0; then
@@ -30,10 +50,13 @@ if ${PKGCONFIG} --version >/dev/null 2>&1; then
    fi
 fi
 
+has_pa=no
 AC_CHECK_HEADERS([portaudio.h],[
-  AC_SEARCH_LIBS(Pa_Initialize, portaudio, [AC_DEFINE(HAS_PA, 1, [defined if PortAudio is available])])
+  AC_SEARCH_LIBS(Pa_Initialize, portaudio, [has_pa=yes
+AC_DEFINE(HAS_PA, 1, [defined if PortAudio is available])])
 ])
 
+# in any case configure produces config.h so we want to use it
 CPPFLAGS="-DHAS_CONFIG_H=1 ${CPPFLAGS}"
 
 AC_CONFIG_FILES([src/Makevars])

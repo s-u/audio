@@ -38,7 +38,7 @@
 #include "portaudio.h"
 
 #define kNumberOutputBuffers 2
-#define USEFLOAT 1
+/* #define USEFLOAT 1 */
 
 #define BOOL int
 #ifndef YES
@@ -52,16 +52,10 @@ typedef struct play_info {
 	/* the following entries must be present since play_info_t inherits from audio_instance_t */
 	audio_driver_t *driver;  /* must point to the driver that created this */
 	int kind;                /* must be either AI_PLAYER or AI_RECORDER */
-/*
-	AudioQueueRef       queue;
-	AudioQueueBufferRef buffers[kNumberOutputBuffers];
-	AudioStreamBasicDescription format;
-	BOOL done;
-	NSError *lastError;
- */
+	SEXP source;
+	/* private entries */
 	PaStream *stream;
 	float sample_rate;
-	SEXP source;
 	BOOL stereo, loop, done;
 	unsigned int position, length;
 } play_info_t;
@@ -72,25 +66,25 @@ static int paPlayCallback(const void *inputBuffer, void *outputBuffer,
 						  PaStreamCallbackFlags statusFlags,
 						  void *userData )
 {
-    play_info_t *ap = (play_info_t*)userData; 
-	//Rprintf("paPlayCallback(in=%p, out=%p, fpb=%d, usr=%p)\n", inputBuffer, outputBuffer, (int) framesPerBuffer, userData);
-	//if (ap->done) { Rprintf("done, skipping\n"); return paAbort; }
-	//Rprintf(" - (sample_rate=%f, stereo=%d, loop=%d, done=%d, pos=%d, len=%d)\n", ap->sample_rate, ap->stereo, ap->loop, ap->done, ap->position, ap->length);
+	play_info_t *ap = (play_info_t*)userData; 
+	if (ap->done) return paAbort;
+	/* Rprintf("paPlayCallback(in=%p, out=%p, fpb=%d, usr=%p)\n", inputBuffer, outputBuffer, (int) framesPerBuffer, userData);
+	//Rprintf(" - (sample_rate=%f, stereo=%d, loop=%d, done=%d, pos=%d, len=%d)\n", ap->sample_rate, ap->stereo, ap->loop, ap->done, ap->position, ap->length); */
 	if (ap->position == ap->length && ap->loop)
 		ap->position = 0;
 	unsigned int index = ap->position;
 	unsigned int rem = ap->length - index;
 	unsigned int spf = ap->stereo ? 2 : 1;
 	if (rem > framesPerBuffer) rem = framesPerBuffer;
-	//printf("position=%d, length=%d, (LEN=%d), rem=%d, cap=%d, spf=%d\n", ap->position, ap->length, LENGTH(ap->source), rem, framesPerBuffer, spf);
+	/* printf("position=%d, length=%d, (LEN=%d), rem=%d, cap=%d, spf=%d\n", ap->position, ap->length, LENGTH(ap->source), rem, framesPerBuffer, spf); */
 	index *= spf;
-	// there is a small caveat - if a zero-size buffer comes along it will stop the playback since rem will be forced to 0 - but then that should not happen ...
+	/* there is a small caveat - if a zero-size buffer comes along it will stop the playback since rem will be forced to 0 - but then that should not happen ... */
 	if (rem > 0) {
 		unsigned int samples = rem * spf; // samples (i.e. SInt16s)
 #ifdef USEFLOAT
 		float *iBuf = (float*) outputBuffer;
 		float *sentinel = iBuf + samples;
-		//printf(" iBuf = %p, sentinel = %p, diff = %d bytes\n", iBuf, sentinel, ((char*)sentinel) - ((char*)iBuf));
+		/* printf(" iBuf = %p, sentinel = %p, diff = %d bytes\n", iBuf, sentinel, ((char*)sentinel) - ((char*)iBuf)); */
 		if (TYPEOF(ap->source) == INTSXP) {
 			int *iSrc = INTEGER(ap->source) + index;
 			while (iBuf < sentinel)
@@ -99,8 +93,8 @@ static int paPlayCallback(const void *inputBuffer, void *outputBuffer,
 			double *iSrc = REAL(ap->source) + index;
 			while (iBuf < sentinel)
 				*(iBuf++) = (float) *(iSrc++);
-			//{ int i = 0; while (i < framesPerBuffer) printf("%.2f ", ((float*) outputBuffer)[i++]); Rprintf("\n"); }				
-		} // FIXME: support functions as sources...
+			/* { int i = 0; while (i < framesPerBuffer) printf("%.2f ", ((float*) outputBuffer)[i++]); Rprintf("\n"); } */
+		} /* FIXME: support functions as sources... */
 #else
 		SInt16 *iBuf = (SInt16*) outputBuffer;
 		SInt16 *sentinel = iBuf + samples;
@@ -112,11 +106,11 @@ static int paPlayCallback(const void *inputBuffer, void *outputBuffer,
 			double *iSrc = REAL(ap->source) + index;
 			while (iBuf < sentinel)
 				*(iBuf++) = (SInt16) (32767.0 * (*(iSrc++)));
-		} // FIXME: support functions as sources...
+		} /* FIXME: support functions as sources... */
 #endif
 		ap->position += rem;
 	} else {
-		// printf(" rem ==0 -> stop queue\n");
+		/* printf(" rem ==0 -> stop queue\n"); */
 		ap->done = YES;
 		return paComplete;
 	}
@@ -133,7 +127,7 @@ static void *portaudio_create_player(SEXP source) {
 	ap->done = NO;
 	ap->position = 0;
 	ap->length = LENGTH(source);
-	ap->stereo = NO; // FIXME: support dim[2] = 2
+	ap->stereo = NO; /* FIXME: support dim[2] = 2 */
 	ap->loop = NO;
 	if (ap->stereo) ap->length /= 2;
 	return ap;
@@ -200,6 +194,12 @@ static int portaudio_resume(void *usr) {
 	return (err == paNoError);
 }
 
+static int portaudio_rewind(void *usr) {
+	play_info_t *p = (play_info_t*) usr;
+	p->position = 0;
+	return 1;
+}
+
 static int portaudio_close(void *usr) {
 	play_info_t *p = (play_info_t*) usr;
     PaError err = Pa_CloseStream( p->stream );
@@ -213,11 +213,13 @@ static void portaudio_dispose(void *usr) {
 
 /* define the audio driver */
 audio_driver_t portaudio_audio_driver = {
+	"PortAudio driver",
 	portaudio_create_player,
 	0, /* recorder is currently unimplemented */
 	portaudio_start,
 	portaudio_pause,
 	portaudio_resume,
+	portaudio_rewind,
 	portaudio_close,
 	portaudio_dispose
 };

@@ -1,5 +1,8 @@
 /* src/config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* defined if AudioUnits are available */
+#undef HAS_AU
+
 /* defined if PortAudio is available */
 #undef HAS_PA
 

@@ -102,6 +102,14 @@ SEXP audio_resume(SEXP instance) {
 	return Rf_ScalarLogical((p->driver)->resume(p));
 }
 
+SEXP audio_rewind(SEXP instance) {
+	if (TYPEOF(instance) != EXTPTRSXP)
+		Rf_error("invalid audio instance");
+	audio_instance_t *p = (audio_instance_t *) EXTPTR_PTR(instance);
+	if (!p) Rf_error("invalid audio instance");
+	return Rf_ScalarLogical((p->driver)->rewind(p));
+}
+
 SEXP audio_close(SEXP instance) {
 	if (TYPEOF(instance) != EXTPTRSXP)
 		Rf_error("invalid audio instance");
@@ -110,3 +118,34 @@ SEXP audio_close(SEXP instance) {
 	return Rf_ScalarLogical((p->driver)->close(p));
 }
 
+SEXP audio_driver_name(SEXP instance) {
+	if (TYPEOF(instance) != EXTPTRSXP)
+		Rf_error("invalid audio instance");
+	audio_instance_t *p = (audio_instance_t *) EXTPTR_PTR(instance);
+	if (!p) Rf_error("invalid audio instance");
+	return Rf_mkString(p->driver->name);
+}
+
+SEXP audio_instance_type(SEXP instance) {
+	if (TYPEOF(instance) != EXTPTRSXP)
+		Rf_error("invalid audio instance");
+	audio_instance_t *p = (audio_instance_t *) EXTPTR_PTR(instance);
+	if (!p) Rf_error("invalid audio instance");
+	return Rf_ScalarInteger(p->kind);
+}
+
+SEXP audio_instance_source(SEXP instance) {
+	if (TYPEOF(instance) != EXTPTRSXP)
+		Rf_error("invalid audio instance");
+	audio_instance_t *p = (audio_instance_t *) EXTPTR_PTR(instance);
+	if (!p) Rf_error("invalid audio instance");
+	return p->source;
+}
+
+SEXP audio_instance_address(SEXP instance) {
+	if (TYPEOF(instance) != EXTPTRSXP)
+		Rf_error("invalid audio instance");
+	audio_instance_t *p = (audio_instance_t *) EXTPTR_PTR(instance);
+	if (!p) Rf_error("invalid audio instance");
+	return Rf_ScalarInteger((int) p);	
+}
