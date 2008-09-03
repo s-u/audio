@@ -1,5 +1,6 @@
 \name{play}
 \alias{play}
+\alias{play.default}
 \title{
   Play audio
 }
@@ -7,14 +8,16 @@
   \code{play} plays audio
 }
 \usage{
-play(x, rate=44100)
+play(x, ...)
+play.default(x, rate=44100)
 }
 \arguments{
   \item{x}{data to play}
-  \item{rate}{sample rate (in Hz)}
+  \item{rate}{sample rate}
+  \item{...}{optional arguments passed to the method specific to the object being played}
 }
 \value{
-  Returns an audio object.
+  Returns an audio instance object which can be used to control the playback subsequently.
 }
 %\seealso{
 %  \code{\link{.jcall}}, \code{\link{.jnull}}

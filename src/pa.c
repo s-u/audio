@@ -117,29 +117,34 @@ static int paPlayCallback(const void *inputBuffer, void *outputBuffer,
 	return 0;
 }
 
-static void *portaudio_create_player(SEXP source) {
+static void *portaudio_create_player(SEXP source, float rate, int flags) {
 	PaError err = Pa_Initialize();
 	if( err != paNoError ) Rf_error("cannot initialize audio system: %s\n", Pa_GetErrorText( err ) );
 	play_info_t *ap = (play_info_t*) calloc(sizeof(play_info_t), 1);
 	ap->source = source;
 	R_PreserveObject(ap->source);
-	ap->sample_rate = 44100.0;
+	ap->sample_rate = rate;
 	ap->done = NO;
 	ap->position = 0;
 	ap->length = LENGTH(source);
-	ap->stereo = NO; /* FIXME: support dim[2] = 2 */
-	ap->loop = NO;
+	ap->stereo = NO;
+	{ /* if the source is a matrix with 2 rows then we'll use stereo */
+		SEXP dim = Rf_getAttrib(source, R_DimSymbol);
+		if (TYPEOF(dim) == INTSXP && LENGTH(dim) > 0 && INTEGER(dim)[0] == 2)
+			ap->stereo = YES;
+	}
+	ap->loop = (flags & APFLAG_LOOP) ? YES : NO;
 	if (ap->stereo) ap->length /= 2;
 	return ap;
 }
 
 static int portaudio_start(void *usr) {
 	play_info_t *p = (play_info_t*) usr;
-    PaError err;
+	PaError err;
 	p->done = NO;
 	
 #if SIMPLEAPI
-    err = Pa_OpenDefaultStream(&p->stream,
+	err = Pa_OpenDefaultStream(&p->stream,
 							   0, /* in ch. */
 							   p->stereo ? 1 : 2, /* out ch */
 #ifdef USEFLOAT
@@ -155,25 +160,25 @@ static int portaudio_start(void *usr) {
 #else
 	PaStreamParameters outputParameters;
 	outputParameters.device = Pa_GetDefaultOutputDevice();
-    outputParameters.channelCount = p->stereo ? 1 : 2;       /* MONO output */
-    outputParameters.sampleFormat = 
+	outputParameters.channelCount = p->stereo ? 1 : 2;       /* MONO output */
+	outputParameters.sampleFormat = 
 #ifdef USEFLOAT
 	paFloat32;
 #else
 	paInt16;
 #endif
-    outputParameters.suggestedLatency = Pa_GetDeviceInfo( outputParameters.device )->defaultLowOutputLatency;
-    outputParameters.hostApiSpecificStreamInfo = NULL;
+	outputParameters.suggestedLatency = Pa_GetDeviceInfo( outputParameters.device )->defaultLowOutputLatency;
+	outputParameters.hostApiSpecificStreamInfo = NULL;
 	
-    err = Pa_OpenStream(
-						&p->stream,
-						NULL, /* no input */
-						&outputParameters,
-						p->sample_rate,
-						1000,
-						paClipOff,      /* we won't output out of range samples so don't bother clipping them */
-						paPlayCallback,
-						p );
+	err = Pa_OpenStream(
+			    &p->stream,
+			    NULL, /* no input */
+			    &outputParameters,
+			    p->sample_rate,
+			    1000,
+			    paClipOff,      /* we won't output out of range samples so don't bother clipping them */
+			    paPlayCallback,
+			    p );
 #endif
 	
 	if( err != paNoError ) Rf_error("cannot open audio for playback: %s\n", Pa_GetErrorText( err ) );

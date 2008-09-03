@@ -46,11 +46,13 @@
 
 #define R_AUDIO_API 1.0
 
+#define APFLAG_LOOP 0x0001
+
 /* define driver structure */
 typedef struct audio_driver {
 	const char *name;
-	struct audio_instance *(*create_player)(SEXP);
-	struct audio_instance *(*create_recorder)(SEXP);
+	struct audio_instance *(*create_player)(SEXP, float, int); /* source, rate (if applicable), flags */
+	struct audio_instance *(*create_recorder)(SEXP, float, int); /* target, rate, flags */
 	int (*start)(void *);
 	int (*pause)(void *);
 	int (*resume)(void *);

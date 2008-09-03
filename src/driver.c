@@ -34,7 +34,11 @@
 
 #include "driver.h"
 
-audio_driver_t *current_driver;
+#ifdef HAVE_DLFCN_H
+#include <dlfcn.h>
+#endif
+
+static audio_driver_t *current_driver;
 
 #if HAS_WMM
 extern audio_driver_t wmmaudio_audio_driver;
@@ -47,7 +51,7 @@ extern audio_driver_t audiounits_audio_driver;
 #endif
 
 /* if no drivers are available, must raise an Rf_error. */
-void load_default_audio_driver()
+static void load_default_audio_driver()
 {
 #if HAS_WMM
   current_driver = &wmmaudio_audio_driver;
@@ -64,15 +68,55 @@ void load_default_audio_driver()
   Rf_error("no audio drivers are available");
 }
 
-SEXP audio_player(SEXP source) {
+static void audio_instance_destructor(SEXP instance) {
+	audio_instance_t *p = (audio_instance_t *) EXTPTR_PTR(instance);
+	p->driver->close(p);
+	p->driver->dispose(p); /* it's driver's responsibility to dispose p */
+}
+
+SEXP audio_load_driver(SEXP path) {
+#ifdef HAS_DLSYM
+	if (TYPEOF(path) == STRSXP && LENGTH(path) > 0) {
+		const char *cPath = CHAR(STRING_ELT(path, 0));
+		void *(*fn)();
+		void *ad, *dl = dlopen(cPath, RTLD_LAZY | RTLD_LOCAL); /* try local first */
+		if (!dl) dl = dlopen(cPath, RTLD_LAZY | RTLD_GLOBAL); /* try global if local failed */
+		if (!dl) Rf_error("cannot load '%s' dynamically", cPath);
+		fn = dlsym(dl, "create_audio_driver");
+		if (!fn) fn = dlsym(dl, "_create_audio_driver");
+		if (!fn) {
+			dlclose(dl);
+			Rf_error("specified module is not an audio driver");
+		}
+		ad = fn();
+		if (!ad) {
+			dlclose(dl);
+			Rf_error("audio driver could not be initialized");
+		}
+		/* FIXME: we never unload the driver module ... */
+		current_driver = (audio_driver_t*) ad;
+		return Rf_mkString(current_driver->name);
+	} else
+		Rf_error("invalid module name");
+#else
+	Rf_error("dynamic loading is not supported on this system");
+#endif
+	return R_NilValue;
+}
+
+SEXP audio_player(SEXP source, SEXP rate) {
+	float fRate = -1.0;
 	if (!current_driver)
 		load_default_audio_driver();
-	audio_instance_t *p = current_driver->create_player(source);
+	if (TYPEOF(rate) == INTSXP || TYPEOF(rate) == REALSXP)
+		fRate = (float) Rf_asReal(rate);
+	audio_instance_t *p = current_driver->create_player(source, fRate, 0);
 	if (!p) Rf_error("cannot start audio driver");
 	p->driver = current_driver;
 	p->kind = AI_PLAYER;
 	SEXP ptr = R_MakeExternalPtr(p, R_NilValue, R_NilValue);
 	Rf_protect(ptr);
+	R_RegisterCFinalizer(ptr, audio_instance_destructor);
 	Rf_setAttrib(ptr, Rf_install("class"), Rf_mkString("audioInstance"));
 	Rf_unprotect(1);
 	return ptr;	

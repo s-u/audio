@@ -1,2 +1,3 @@
-export(play)
-export(print.audioInstance)
+export(play, play.default, play.Sample, pause, resume, rewind, record, load.audio.driver)
+S3method(print, audioInstance)
+exportPattern(".*\\.audioInstance")

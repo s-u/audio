@@ -150,16 +150,21 @@ void CALLBACK waveOutProc(HWAVEOUT hwo,
 }
 
 
-static wmm_instance_t *wmmaudio_create_player(SEXP source) {
+static wmm_instance_t *wmmaudio_create_player(SEXP source, float rate, int flags) {
 	wmm_instance_t *ap = (wmm_instance_t*) calloc(sizeof(wmm_instance_t), 1);
 	ap->source = source;
 	R_PreserveObject(ap->source);
-	ap->sample_rate = 44100.0;
+	ap->sample_rate = rate;
 	ap->done = NO;
 	ap->position = 0;
 	ap->length = LENGTH(source);
-	ap->stereo = NO; // FIXME: support dim[2] = 2
-	ap->loop = NO;
+	ap->stereo = NO;
+	{ /* if the source is a matrix with 2 rows then we'll use stereo */
+		SEXP dim = Rf_getAttrib(source, R_DimSymbol);
+		if (TYPEOF(dim) == INTSXP && LENGTH(dim) > 0 && INTEGER(dim)[0] == 2)
+			ap->stereo = YES;
+	}
+	ap->loop = (flags & APFLAG_LOOP) ? YES : NO;
 	if (ap->stereo) ap->length /= 2;
 	if (!feederThread)
 		feederThread = CreateThread(0, 0, feederThreadProc, 0, 0, &feederThreadId);

@@ -50,6 +50,9 @@ if ${PKGCONFIG} --version >/dev/null 2>&1; then
    fi
 fi
 
+AC_CHECK_HEADERS([dlfcn.h])
+AC_SEARCH_LIBS(dlsym, dl, [AC_DEFINE(HAS_DLSYM, 1, [defined if the system supports dlsym])])
+
 has_pa=no
 AC_CHECK_HEADERS([portaudio.h],[
   AC_SEARCH_LIBS(Pa_Initialize, portaudio, [has_pa=yes

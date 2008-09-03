@@ -108,19 +108,24 @@ static OSStatus outputRenderProc(void *inRefCon, AudioUnitRenderActionFlags *inA
 	return noErr;
 }
 
-static au_instance_t *audiounits_create_player(SEXP source) {
+static au_instance_t *audiounits_create_player(SEXP source, float rate, int flags) {
 	ComponentDescription desc = { kAudioUnitType_Output, kAudioUnitSubType_DefaultOutput, kAudioUnitManufacturer_Apple, 0, 0 };
 	Component comp; 
 	OSStatus err;
 	
 	au_instance_t *ap = (au_instance_t*) calloc(sizeof(au_instance_t), 1);
 	ap->source = source;
-	ap->sample_rate = 44100.0;
+	ap->sample_rate = rate;
 	ap->done = NO;
 	ap->position = 0;
 	ap->length = LENGTH(source);
-	ap->stereo = NO; // FIXME: support dim[2] = 2
-	ap->loop = NO;
+	ap->stereo = NO;
+	{ /* if the source is a matrix with 2 rows then we'll use stereo */
+		SEXP dim = Rf_getAttrib(source, R_DimSymbol);
+		if (TYPEOF(dim) == INTSXP && LENGTH(dim) > 0 && INTEGER(dim)[0] == 2)
+			ap->stereo = YES;
+	}
+	ap->loop = (flags & APFLAG_LOOP) ? YES : NO;
 	memset(&ap->fmtOut, 0, sizeof(ap->fmtOut));
 	ap->fmtOut.mSampleRate = ap->sample_rate;
 	ap->fmtOut.mFormatID = kAudioFormatLinearPCM;
