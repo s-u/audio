@@ -143,7 +143,6 @@ static int portaudio_start(void *usr) {
 	PaError err;
 	p->done = NO;
 	
-#if SIMPLEAPI
 	err = Pa_OpenDefaultStream(&p->stream,
 							   0, /* in ch. */
 							   p->stereo ? 1 : 2, /* out ch */
@@ -157,30 +156,7 @@ static int portaudio_start(void *usr) {
 							   1024,
 							   paPlayCallback,
 							   p );
-#else
-	PaStreamParameters outputParameters;
-	outputParameters.device = Pa_GetDefaultOutputDevice();
-	outputParameters.channelCount = p->stereo ? 1 : 2;       /* MONO output */
-	outputParameters.sampleFormat = 
-#ifdef USEFLOAT
-	paFloat32;
-#else
-	paInt16;
-#endif
-	outputParameters.suggestedLatency = Pa_GetDeviceInfo( outputParameters.device )->defaultLowOutputLatency;
-	outputParameters.hostApiSpecificStreamInfo = NULL;
-	
-	err = Pa_OpenStream(
-			    &p->stream,
-			    NULL, /* no input */
-			    &outputParameters,
-			    p->sample_rate,
-			    1000,
-			    paClipOff,      /* we won't output out of range samples so don't bother clipping them */
-			    paPlayCallback,
-			    p );
-#endif
-	
+
 	if( err != paNoError ) Rf_error("cannot open audio for playback: %s\n", Pa_GetErrorText( err ) );
 	err = Pa_StartStream( p->stream );
 	if( err != paNoError ) Rf_error("cannot start audio playback: %s\n", Pa_GetErrorText( err ) );

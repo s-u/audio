@@ -1,5 +1,5 @@
-\name{load.dudio.driver}
-\alias{load.dudio.driver}
+\name{load.audio.driver}
+\alias{load.audio.driver}
 \title{
   Audio drivers
 }
