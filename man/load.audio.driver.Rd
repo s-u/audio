@@ -4,12 +4,12 @@
   Audio drivers
 }
 \description{
-  \code{load.dudio.driver} attempts to load a modular audio driver and,
+  \code{load.audio.driver} attempts to load a modular audio driver and,
   if succeessful, makes it the current audio driver.
 
 }
 \usage{
-load.dudio.driver(path)
+load.audio.driver(path)
 }
 \arguments{
   \item{path}{path to the dynamic module to load}
