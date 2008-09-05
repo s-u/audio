@@ -53,7 +53,8 @@ typedef struct au_instance {
 	SEXP source;
 	/* private entries */
 	AudioUnit outUnit;
-	AudioStreamBasicDescription fmtOut;
+	AudioDeviceID inDev;
+	AudioStreamBasicDescription fmtOut, fmtIn;
 	float sample_rate;
 	BOOL stereo, loop, done;
 	unsigned int position, length;
@@ -151,26 +152,81 @@ static au_instance_t *audiounits_create_player(SEXP source, float rate, int flag
 	return ap;
 }
 
+static OSStatus inputRenderProc(AudioDeviceID inDevice, 
+				const AudioTimeStamp*inNow, 
+				const AudioBufferList*inInputData, 
+				const AudioTimeStamp*inInputTime, 
+				AudioBufferList*outOutputData, 
+				const AudioTimeStamp*inOutputTime, 
+				void*inClientData) {
+	printf("inputRenderProc, (bufs=%d, buf[0].chs=%d), buf=%p, size=%d\n", inInputData->mNumberBuffers, inInputData->mBuffers[0].mNumberChannels, inInputData->mBuffers[0].mData, inInputData->mBuffers[0].mDataByteSize);
+	return 0;
+}
+
+static au_instance_t *audiounits_create_recorder(SEXP source, float rate, int chs, int flags) {
+	UInt32 propsize=0;
+	OSStatus err;
+	
+	au_instance_t *ap = (au_instance_t*) calloc(sizeof(au_instance_t), 1);
+	ap->source = source;
+	ap->sample_rate = rate;
+	ap->done = NO;
+	ap->position = 0;
+	ap->length = LENGTH(source);
+	ap->stereo = (chs == 2) ? YES : NO;
+	
+	propsize = sizeof(ap->inDev);
+	err = AudioHardwareGetProperty(kAudioHardwarePropertyDefaultInputDevice, &propsize, &ap->inDev);
+	if (err) {
+		free(ap);
+		Rf_error("unable to find default audio input (%08x)", err);
+	}
+	
+	propsize = sizeof(ap->fmtIn);
+	err = AudioDeviceGetProperty(ap->inDev, 0, YES, kAudioDevicePropertyStreamFormat, &propsize, &ap->fmtIn);
+	if (err) {
+		free(ap);
+		Rf_error("unable to retrieve audio input format (%08x)", err);
+	}
+	
+	printf(" recording - rate: %f, chs: %d, fpp: %d, bpp: %d, bpf: %d, flags: %x\n", ap->fmtIn.mSampleRate, ap->fmtIn.mChannelsPerFrame, ap->fmtIn.mFramesPerPacket, ap->fmtIn.mBytesPerPacket, ap->fmtIn.mBytesPerFrame, ap->fmtIn.mFormatFlags);
+	
+	err = AudioDeviceAddIOProc(ap->inDev, inputRenderProc, ap);
+	if (err) {
+		free(ap);
+		Rf_error("unable to register recording callback (%08x)", err);
+	}
+	R_PreserveObject(ap->source);
+	return ap;
+}
+
 static int audiounits_start(void *usr) {
 	au_instance_t *ap = (au_instance_t*) usr;
-	AURenderCallbackStruct renderCallback = { outputRenderProc, usr };
 	OSStatus err;
-	ap->done = NO;
-	/* set format */
-	ap->fmtOut.mSampleRate = ap->sample_rate;
-	err = AudioUnitSetProperty(ap->outUnit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, &ap->fmtOut, sizeof(ap->fmtOut));
-	if (err) Rf_error("unable to set output audio format (%08x)", err);
-	/* set callback */
-	err = AudioUnitSetProperty(ap->outUnit, kAudioUnitProperty_SetRenderCallback, kAudioUnitScope_Input, 0, &renderCallback, sizeof(renderCallback));
-	if (err) Rf_error("unable to register audio callback (%08x)", err);
-	/* start audio */
-	err = AudioOutputUnitStart(ap->outUnit);
-	if (err) Rf_error("unable to start playback (%08x)", err);
+	if (ap->kind == AI_RECORDER) {
+		err = AudioDeviceStart(ap->inDev, inputRenderProc);
+		if (err) Rf_error("unable to start recording (%08x)", err);
+	} else {
+		AURenderCallbackStruct renderCallback = { outputRenderProc, usr };
+		ap->done = NO;
+		/* set format */
+		ap->fmtOut.mSampleRate = ap->sample_rate;
+		err = AudioUnitSetProperty(ap->outUnit, kAudioUnitProperty_StreamFormat, kAudioUnitScope_Input, 0, &ap->fmtOut, sizeof(ap->fmtOut));
+		if (err) Rf_error("unable to set output audio format (%08x)", err);
+		/* set callback */
+		err = AudioUnitSetProperty(ap->outUnit, kAudioUnitProperty_SetRenderCallback, kAudioUnitScope_Input, 0, &renderCallback, sizeof(renderCallback));
+		if (err) Rf_error("unable to register audio callback (%08x)", err);
+		/* start audio */
+		err = AudioOutputUnitStart(ap->outUnit);
+		if (err) Rf_error("unable to start playback (%08x)", err);
+	}
 	return 1;
 }
 
 static int audiounits_pause(void *usr) {
 	au_instance_t *p = (au_instance_t*) usr;
+	if (p->kind == AI_RECORDER)
+		return AudioDeviceStop(p->inDev, inputRenderProc) ? 0 : 1;
 	return AudioOutputUnitStop(p->outUnit) ? 0 : 1;
 }
 
@@ -193,13 +249,17 @@ static int audiounits_close(void *usr) {
 		AudioUnitUninitialize(p->outUnit);
 		CloseComponent(p->outUnit);
 		p->outUnit = 0;
-	}	
+	}
+	if (p->inDev) {
+		AudioDeviceRemoveIOProc(p->inDev, inputRenderProc);
+		p->inDev = 0;
+	}
 	return 1;
 }
 
 static void audiounits_dispose(void *usr) {
 	au_instance_t *p = (au_instance_t*) usr;
-	if (p->outUnit) audiounits_close(usr);
+	if (p->outUnit || p->inDev) audiounits_close(usr);
 #if 0
 	int i = 0;
 	while (i < kNumberOutputBuffers) {
@@ -214,7 +274,7 @@ static void audiounits_dispose(void *usr) {
 audio_driver_t audiounits_audio_driver = {
 	"AudioUnits (Mac OS X) driver",
 	audiounits_create_player,
-	0, /* recorder is currently unimplemented */
+	audiounits_create_recorder,
 	audiounits_start,
 	audiounits_pause,
 	audiounits_resume,

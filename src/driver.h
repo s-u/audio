@@ -46,13 +46,13 @@
 
 #define R_AUDIO_API 1.0
 
-#define APFLAG_LOOP 0x0001
+#define APFLAG_LOOP   0x0001
 
 /* define driver structure */
 typedef struct audio_driver {
 	const char *name;
 	struct audio_instance *(*create_player)(SEXP, float, int); /* source, rate (if applicable), flags */
-	struct audio_instance *(*create_recorder)(SEXP, float, int); /* target, rate, flags */
+	struct audio_instance *(*create_recorder)(SEXP, float, int, int); /* target, rate, channels, flags */
 	int (*start)(void *);
 	int (*pause)(void *);
 	int (*resume)(void *);
@@ -62,7 +62,7 @@ typedef struct audio_driver {
 } audio_driver_t;
 
 #define AI_PLAYER   1
-#define AT_RECORDER 2
+#define AI_RECORDER 2
 
 /* define audio instance structure. individual implementations
    are free to add their own fields, but those listed below must be

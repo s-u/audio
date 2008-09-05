@@ -52,6 +52,7 @@ typedef struct wmm_instance {
 	float sample_rate;
 	BOOL stereo, loop, done;
 	unsigned int position, length;
+	int dequeued; /* set to non-zero if any buffers have been dequeued (e.g. at the end of playback) */
 } wmm_instance_t;
 	
 /* legacy from OS X API .. */
@@ -143,7 +144,7 @@ void CALLBACK waveOutProc(HWAVEOUT hwo,
 			    while (bufId < kNumberOutputBuffers && &ap->bufOutHdr[bufId] != hdr) bufId++;
 			    hdr->dwBytesRecorded = ((unsigned int) res) * bpf;
 			    PostThreadMessage(feederThreadId, MSG_OUTBUFFER, bufId, (LPARAM) ap);			    
-		    }
+		    } else ap->dequeued++;
 	    }
 		    break;
 	}
@@ -234,6 +235,18 @@ static int wmmaudio_pause(void *usr) {
 
 static int wmmaudio_resume(void *usr) {
 	wmm_instance_t *p = (wmm_instance_t*) usr;
+	/* if buffers have been dequeued before, we need to enqueue them back */
+	if (p->dequeued && p->position < p->length) {
+		int i = 0;
+		while (i < kNumberOutputBuffers) {
+			int pres = primeBuffer(p, p->bufOut[i], bufferSize / (p->stereo ? 4 : 2));
+			if (pres < 1) break;
+			p->bufOutHdr[i].dwBytesRecorded = pres * (p->stereo ? 4 : 2);			
+			waveOutWrite(p->hout, &p->bufOutHdr[i++], sizeof(p->bufOutHdr[0]));
+		}
+		p->dequeued = 0;
+	}
+
 	if (p->hout)
 		waveOutRestart(p->hout);
 	return 1;

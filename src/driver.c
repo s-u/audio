@@ -122,6 +122,28 @@ SEXP audio_player(SEXP source, SEXP rate) {
 	return ptr;	
 }
 
+SEXP audio_recorder(SEXP source, SEXP rate, SEXP channels) {
+	float fRate = -1.0;
+	int chs = Rf_asInteger(channels);
+	if (!current_driver)
+		load_default_audio_driver();
+	if (TYPEOF(rate) == INTSXP || TYPEOF(rate) == REALSXP)
+		fRate = (float) Rf_asReal(rate);
+	if (chs < 1) chs = 1;
+	if (!current_driver->create_recorder)
+		Rf_error("the currently used audio driver doesn't support recording");
+	audio_instance_t *p = current_driver->create_recorder(source, fRate, chs, 0);
+	if (!p) Rf_error("cannot start audio driver");
+	p->driver = current_driver;
+	p->kind = AI_RECORDER;
+	SEXP ptr = R_MakeExternalPtr(p, R_NilValue, R_NilValue);
+	Rf_protect(ptr);
+	R_RegisterCFinalizer(ptr, audio_instance_destructor);
+	Rf_setAttrib(ptr, Rf_install("class"), Rf_mkString("audioInstance"));
+	Rf_unprotect(1);
+	return ptr;
+}
+
 SEXP audio_start(SEXP instance) {
 	if (TYPEOF(instance) != EXTPTRSXP)
 		Rf_error("invalid audio instance");
