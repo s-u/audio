@@ -28,8 +28,8 @@ resume.audioInstance <- function(x, ...)
 rewind.audioInstance <- function(x, ...)
   invisible(.Call("audio_rewind", x, PACKAGE="audio"))
 
-close.audioInstance <- function(x, ...)
-  invisible(.Call("audio_close", x, PACKAGE="audio"))
+close.audioInstance <- function(con, ...)
+  invisible(.Call("audio_close", con, PACKAGE="audio"))
 
 play.default <- function(x, rate=44100, ...) {
   a <- .Call("audio_player", x, rate, PACKAGE="audio")
@@ -54,7 +54,45 @@ play.audioSample <- function(x, rate, ...) {
 
 play.audioInstance <- function(x, ...) stop("you cannot play an audio instance - try play(a$data) if a is a recorded instance")
 
-`$.audioInstance` <- function(x, name) if (isTRUE(name == "data")) .Call("audio_instance_source", x) else NULL
+`$.audioInstance` <- function(x, name) if (isTRUE(name == "data")) .Call("audio_instance_source", x, PACKAGE="audio") else NULL
 
 `$.audioSample` <- function(x, name) attr(x, name)
 `$<-.audioSample` <- function(x, name, value) .Primitive("attr<-")
+
+audioSample <- function(x, rate=44100, bits=16, clip = TRUE) {
+  if (!is.null(dim(x)) && dim(x)[1] != 1 && dim(x)[1] != 2)
+    stop("invalid dimensions, audio samples must be either vectors or matrices with one (mono) or two (stereo) rows")
+  if (is.integer(x)) {
+    if (isTRUE(bits == 16)) x <- x / 32767.0 else if (isTRUE(bits == 8)) x <- x / 127.0 else stop("invalid sample size, must be 8 or 16 bits")
+  }
+  if (clip) {
+    x[x > 1] <- 1
+    x[x < -1] <- -1
+  }
+  attr(x, "rate") <- rate
+  attr(x, "bits") <- as.integer(bits)
+  class(x) <- "audioSample"
+  x
+}
+
+as.audioSample <- function(x, ...) UseMethod("as.audioSample")
+
+as.audioSample.default <- function(x, rate, bits, clip, ...) {
+  if (missing(rate)) rate <- 44100
+  if (missing(bits)) bits <- 16L
+  if (missing(clip)) clip <- TRUE
+  audioSample(x, rate, bits, clip)
+}
+
+# "sound" compatibility functions
+
+as.audioSample.Sample <- function(x, ...)
+  audioSample(x$sample, x$rate, x$bits)
+
+as.Sample.audioSample <- function(x, ...) {
+  y <- x
+  attributes(y) <- NULL
+  # we are not using sound's constructor, because we don't want to depend on it,
+  # but it may prove to be dangerous if sound ever changes the format
+  structure(list(sample = y, rate = x$rate, bits = x$bits), class="Sample")
+}
