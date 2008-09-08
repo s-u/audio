@@ -4,3 +4,12 @@ print.audioInstance <- function(x, ...) {
   cat(info)
   invisible(info)
 }
+
+print.audioSample <- function(x, ...) {
+  kind <- if (is.null(dim(x)) || dim(x)[1] != 2) 'mono' else 'stereo'
+  bits <- attr(x, "bits", TRUE)
+  bits <- if (is.null(bits)) '' else paste(", ", bits, "-bits", sep='')
+  cat("sample rate: ", attr(x,"rate"), "Hz, ", kind, bits, "\n", sep='')
+  attributes(x) <- NULL
+  print(x)
+}

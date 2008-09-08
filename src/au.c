@@ -55,7 +55,11 @@ typedef struct au_instance {
 	AudioUnit outUnit;
 	AudioDeviceID inDev;
 	AudioStreamBasicDescription fmtOut, fmtIn;
+#if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MIN_REQUIRED>=MAC_OS_X_VERSION_10_5)
+	AudioDeviceIOProcID inIOProcID;
+#endif
 	float sample_rate;
+	double srFrac, srRun;
 	BOOL stereo, loop, done;
 	unsigned int position, length;
 } au_instance_t;
@@ -152,6 +156,8 @@ static au_instance_t *audiounits_create_player(SEXP source, float rate, int flag
 	return ap;
 }
 
+static int audiounits_pause(void *usr);
+
 static OSStatus inputRenderProc(AudioDeviceID inDevice, 
 				const AudioTimeStamp*inNow, 
 				const AudioBufferList*inInputData, 
@@ -159,7 +165,30 @@ static OSStatus inputRenderProc(AudioDeviceID inDevice,
 				AudioBufferList*outOutputData, 
 				const AudioTimeStamp*inOutputTime, 
 				void*inClientData) {
-	printf("inputRenderProc, (bufs=%d, buf[0].chs=%d), buf=%p, size=%d\n", inInputData->mNumberBuffers, inInputData->mBuffers[0].mNumberChannels, inInputData->mBuffers[0].mData, inInputData->mBuffers[0].mDataByteSize);
+	float *s = (float*) inInputData->mBuffers[0].mData;
+	unsigned int len = inInputData->mBuffers[0].mDataByteSize / sizeof(float), i = 0, ichs = inInputData->mBuffers[0].mNumberChannels;
+	au_instance_t *ap = (au_instance_t*) inClientData;
+	/* Rprintf("inputRenderProc, (bufs=%d, buf[0].chs=%d), buf=%p, size=%d [%d samples]\n", inInputData->mNumberBuffers, inInputData->mBuffers[0].mNumberChannels, inInputData->mBuffers[0].mData, inInputData->mBuffers[0].mDataByteSize, len); */
+	if (TYPEOF(ap->source) == REALSXP) {
+		double *d = REAL(ap->source), srr = ap->srRun, srf = ap->srFrac;
+		unsigned int chs = ap->stereo ? 2 : 1;
+		/* FIXME: we're assuming that channels can only be 1 or 2 */
+		while (ap->position < ap->length && i < len) {
+			srr += srf;
+			if (srr >= 1.0) {
+				if (ichs > chs) d[ap->position++] = (s[i] + s[i + 1]) / 2; 
+				else {
+					if (ichs < chs) d[ap->position++] = s[i];
+					d[ap->position++] = s[i];
+				}
+				srr -= 1.0;
+			};
+			i++;
+		}
+		ap->srRun = srr;
+	}
+	/* pause the unit when the recording is complete */
+	if (ap->position >= ap->length) audiounits_pause(ap);
 	return 0;
 }
 
@@ -189,14 +218,31 @@ static au_instance_t *audiounits_create_recorder(SEXP source, float rate, int ch
 		Rf_error("unable to retrieve audio input format (%08x)", err);
 	}
 	
-	printf(" recording - rate: %f, chs: %d, fpp: %d, bpp: %d, bpf: %d, flags: %x\n", ap->fmtIn.mSampleRate, ap->fmtIn.mChannelsPerFrame, ap->fmtIn.mFramesPerPacket, ap->fmtIn.mBytesPerPacket, ap->fmtIn.mBytesPerFrame, ap->fmtIn.mFormatFlags);
+	/* Rprintf(" recording format: %f, chs: %d, fpp: %d, bpp: %d, bpf: %d, flags: %x\n", ap->fmtIn.mSampleRate, ap->fmtIn.mChannelsPerFrame, ap->fmtIn.mFramesPerPacket, ap->fmtIn.mBytesPerPacket, ap->fmtIn.mBytesPerFrame, ap->fmtIn.mFormatFlags); */
 	
+	ap->srFrac = 1.0;
+	if (ap->fmtIn.mSampleRate != ap->sample_rate) ap->srFrac = ap->sample_rate / ap->fmtIn.mSampleRate;
+	ap->srRun = 0.0;
+	
+#if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MIN_REQUIRED>=MAC_OS_X_VERSION_10_5)
+	err = AudioDeviceCreateIOProcID(ap->inDev, inputRenderProc, ap, &ap->inIOProcID );
+#else
 	err = AudioDeviceAddIOProc(ap->inDev, inputRenderProc, ap);
+#endif
 	if (err) {
 		free(ap);
 		Rf_error("unable to register recording callback (%08x)", err);
 	}
 	R_PreserveObject(ap->source);
+	Rf_setAttrib(ap->source, Rf_install("rate"), Rf_ScalarInteger(rate)); /* we adjust the rate */
+	Rf_setAttrib(ap->source, Rf_install("bits"), Rf_ScalarInteger(16)); /* we say it's 16 because we don't know - float is always 32-bit */
+	Rf_setAttrib(ap->source, Rf_install("class"), Rf_mkString("audioSample"));
+	if (ap->stereo) {
+		SEXP dim = Rf_allocVector(INTSXP, 2);
+		INTEGER(dim)[0] = 2;
+		INTEGER(dim)[1] = LENGTH(ap->source) / 2;
+		Rf_setAttrib(ap->source, R_DimSymbol, dim);
+	}
 	return ap;
 }
 
@@ -204,7 +250,11 @@ static int audiounits_start(void *usr) {
 	au_instance_t *ap = (au_instance_t*) usr;
 	OSStatus err;
 	if (ap->kind == AI_RECORDER) {
+#if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MIN_REQUIRED>=MAC_OS_X_VERSION_10_5)
+		err = AudioDeviceStart(ap->inDev, ap->inIOProcID);
+#else
 		err = AudioDeviceStart(ap->inDev, inputRenderProc);
+#endif
 		if (err) Rf_error("unable to start recording (%08x)", err);
 	} else {
 		AURenderCallbackStruct renderCallback = { outputRenderProc, usr };
@@ -225,8 +275,13 @@ static int audiounits_start(void *usr) {
 
 static int audiounits_pause(void *usr) {
 	au_instance_t *p = (au_instance_t*) usr;
+#if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MIN_REQUIRED>=MAC_OS_X_VERSION_10_5)
+	if (p->kind == AI_RECORDER)
+		return AudioDeviceStop(p->inDev, p->inIOProcID) ? 0 : 1;
+#else
 	if (p->kind == AI_RECORDER)
 		return AudioDeviceStop(p->inDev, inputRenderProc) ? 0 : 1;
+#endif
 	return AudioOutputUnitStop(p->outUnit) ? 0 : 1;
 }
 
@@ -244,6 +299,7 @@ static int audiounits_resume(void *usr) {
 static int audiounits_close(void *usr) {
 	au_instance_t *p = (au_instance_t*) usr;
 	p->done = YES;
+	Rprintf(" closing audiounit %p\n", usr);
 	if (p->outUnit) {
 		AudioOutputUnitStop(p->outUnit);
 		AudioUnitUninitialize(p->outUnit);
@@ -251,7 +307,11 @@ static int audiounits_close(void *usr) {
 		p->outUnit = 0;
 	}
 	if (p->inDev) {
+#if defined(MAC_OS_X_VERSION_10_5) && (MAC_OS_X_VERSION_MIN_REQUIRED>=MAC_OS_X_VERSION_10_5)
+		AudioDeviceDestroyIOProcID(p->inDev, p->inIOProcID);
+#else
 		AudioDeviceRemoveIOProc(p->inDev, inputRenderProc);
+#endif
 		p->inDev = 0;
 	}
 	return 1;

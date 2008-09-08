@@ -1,4 +1,6 @@
 export(play, play.default, play.Sample, pause, resume, rewind, record, load.audio.driver)
 export(load.wave, save.wave)
 S3method(print, audioInstance)
+S3method(print, audioSample)
 exportPattern(".*\\.audioInstance")
+exportPattern(".*\\.audioSample")
