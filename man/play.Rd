@@ -23,6 +23,8 @@ play.default(x, rate=44100)
 %  \code{\link{.jcall}}, \code{\link{.jnull}}
 %}
 \examples{
+\donttest{
 play(sin(1:10000/20))
+}
 }
 \keyword{interface}

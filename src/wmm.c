@@ -40,6 +40,9 @@
 #define kNumberOutputBuffers 3
 #define kOutputBufferSize 4096
 
+#define kNumberInputBuffers 3
+#define kInputBufferSize 4096
+
 typedef struct wmm_instance {
 	/* the following entries must be present since play_info_t inherits from audio_instance_t */
 	audio_driver_t *driver;  /* must point to the driver that created this */
@@ -47,8 +50,9 @@ typedef struct wmm_instance {
 	SEXP source;
 	/* private entries */
 	HWAVEOUT hout;
-	char *bufOut[kNumberOutputBuffers];
-	WAVEHDR bufOutHdr[kNumberOutputBuffers];
+	HWAVEIN hin;
+	char *bufOut[(kNumberOutputBuffers > kNumberInputBuffers) ? kNumberOutputBuffers : kNumberInputBuffers];
+	WAVEHDR bufOutHdr[(kNumberOutputBuffers > kNumberInputBuffers) ? kNumberOutputBuffers : kNumberInputBuffers];
 	float sample_rate;
 	BOOL stereo, loop, done;
 	unsigned int position, length;
@@ -71,11 +75,11 @@ static int primeBuffer(wmm_instance_t *ap, void *outputBuffer, unsigned int fram
 	unsigned int rem = ap->length - index;
 	unsigned int spf = ap->stereo ? 2 : 1;
 	if (rem > framesPerBuffer) rem = framesPerBuffer;
-	//printf("position=%d, length=%d, (LEN=%d), rem=%d, cap=%d, spf=%d\n", ap->position, ap->length, LENGTH(ap->source), rem, framesPerBuffer, spf);
+	/* printf("position=%d, length=%d, (LEN=%d), rem=%d, cap=%d, spf=%d\n", ap->position, ap->length, LENGTH(ap->source), rem, framesPerBuffer, spf); */
 	index *= spf;
-	// there is a small caveat - if a zero-size buffer comes along it will stop the playback since rem will be forced to 0 - but then that should not happen ...
+	/* there is a small caveat - if a zero-size buffer comes along it will stop the playback since rem will be forced to 0 - but then that should not happen ... */
 	if (rem > 0) {
-		unsigned int samples = rem * spf; // samples (i.e. SInt16s)
+		unsigned int samples = rem * spf; /* samples (i.e. SInt16s) */
 		SInt16 *iBuf = (SInt16*) outputBuffer;
 		SInt16 *sentinel = iBuf + samples;
 		if (TYPEOF(ap->source) == INTSXP) {
@@ -86,10 +90,10 @@ static int primeBuffer(wmm_instance_t *ap, void *outputBuffer, unsigned int fram
 			double *iSrc = REAL(ap->source) + index;
 			while (iBuf < sentinel)
 				*(iBuf++) = (SInt16) (32767.0 * (*(iSrc++)));
-		} // FIXME: support functions as sources...
+		} /* FIXME: support functions as sources... */
 		ap->position += rem;
 	} else {
-		// printf(" rem ==0 -> stop queue\n");
+		/* printf(" rem ==0 -> stop queue\n"); */
 		ap->done = YES;
 		return 0;
 	}
@@ -103,7 +107,7 @@ DWORD  feederThreadId;
 #define MSG_OUTBUFFER 0x410
 #define MSG_QUIT      0x408
 
-DWORD WINAPI feederThreadProc(LPVOID usr) {
+static DWORD WINAPI feederThreadProc(LPVOID usr) {
 	MSG msg;
 	while (GetMessage(&msg, NULL, 0, 0)) {
 		switch (msg.message) {
@@ -121,7 +125,7 @@ DWORD WINAPI feederThreadProc(LPVOID usr) {
 	return 0;
 }
 
-void CALLBACK waveOutProc(HWAVEOUT hwo,      
+static void CALLBACK waveOutProc(HWAVEOUT hwo,      
 			  UINT uMsg,         
 			  DWORD_PTR dwInstance,  
 			  DWORD_PTR dwParam1,    
@@ -150,6 +154,43 @@ void CALLBACK waveOutProc(HWAVEOUT hwo,
 	}
 }
 
+static void CALLBACK waveInProc(
+				HWAVEIN hwi,       
+				UINT uMsg,         
+				DWORD_PTR dwInstance,  
+				DWORD_PTR dwParam1,    
+				DWORD_PTR dwParam2) {
+	switch (uMsg) {
+		case WIM_CLOSE:
+			break;
+		case WIM_OPEN:
+			break;
+		case WIM_DATA:
+		{
+			WAVEHDR *hdr = (WAVEHDR*) dwParam1;
+			wmm_instance_t *ap = (wmm_instance_t*) hdr->dwUser;
+			signed short int *si = (signed short int*) hdr->lpData;
+			unsigned int len = hdr->dwBytesRecorded / 2;
+			if (TYPEOF(ap->source) == REALSXP) {
+				double *d = REAL(ap->source);
+				unsigned int cp = ap->position, lp = LENGTH(ap->source), i = 0;
+				while (i < len && cp < lp)
+					d[cp++] = ((double)si[i++]) / 32768.0;
+				ap->position = cp;
+			}
+			if (ap->position >= ap->length) /* pause if we reach the end */
+				waveInStop(ap->hin);
+			hdr->dwBytesRecorded = 0;
+			hdr->dwLoops = 0;
+			hdr->dwBufferLength = kInputBufferSize;
+			hdr->dwFlags &= WHDR_PREPARED;	/* reset all bits except prepared */
+			if ((hdr->dwFlags & WHDR_PREPARED) == 0)
+				waveInPrepareHeader(ap-hin, hdr, sizeof(*hdr));
+			/* re-enqueue the buffer */
+			waveInAddBuffer(ap->hin, hdr, sizeof(*hdr));
+		}
+	}
+}
 
 static wmm_instance_t *wmmaudio_create_player(SEXP source, float rate, int flags) {
 	wmm_instance_t *ap = (wmm_instance_t*) calloc(sizeof(wmm_instance_t), 1);
@@ -172,8 +213,81 @@ static wmm_instance_t *wmmaudio_create_player(SEXP source, float rate, int flags
 	return ap;
 }
 
+static wmm_instance_t *wmmaudio_create_recorder(SEXP source, float rate, int channels, int flags) {
+	wmm_instance_t *ap = (wmm_instance_t*) calloc(sizeof(wmm_instance_t), 1);
+	ap->source = source;
+	ap->sample_rate = rate;
+	ap->done = NO;
+	ap->position = 0;
+	ap->length = LENGTH(source);
+	ap->stereo = (channels == 2) ? YES : NO;
+	ap->loop = (flags & APFLAG_LOOP) ? YES : NO;
+	/* if (ap->stereo) ap->length /= 2; we're bad - we us eposition as a raw pointer in the samples */
+	MMRESULT res;
+	WAVEFORMATEX fmt = {
+		WAVE_FORMAT_PCM, 
+		ap->stereo ? 2 : 1,
+		(unsigned int) ap->sample_rate,
+		((unsigned int) ap->sample_rate) * (ap->stereo ? 2 : 4),
+		ap->stereo ? 2 : 4,
+		16,
+		0
+	};
+	ap->done = NO;
+	
+	/* open audio */
+	res = waveInOpen(&ap->hin, WAVE_MAPPER, &fmt, (DWORD_PTR)waveInProc, 0, CALLBACK_FUNCTION);
+	if (res) Rf_error("unable to open WMM audio for recording (%d)", res);
+	
+	/* allocate and prepare buffers */
+	{
+		unsigned int bufferSize = kInputBufferSize;
+		int i = 0;
+		while (i < kNumberInputBuffers) {
+			ap->bufOut[i] = (char*) malloc(bufferSize);
+			memset(&ap->bufOutHdr[i], 0, sizeof(ap->bufOutHdr[i]));
+			ap->bufOutHdr[i].lpData = (LPSTR) ap->bufOut[i];
+			ap->bufOutHdr[i].dwBufferLength = bufferSize;
+			ap->bufOutHdr[i].dwBytesRecorded = 0;
+			ap->bufOutHdr[i].dwUser = (DWORD) ap;
+			res = waveInPrepareHeader(ap->hin, &ap->bufOutHdr[i], sizeof(ap->bufOutHdr[i]));
+			if (res || waveInAddBuffer(ap->hin, &ap->bufOutHdr[i], sizeof(ap->bufOutHdr[i]))) {
+				while (i >= 0) {
+					free(ap->bufOut[i]); ap->bufOut[i] = 0;
+					i--;
+					if (i >= 0)
+						waveInUnprepareHeader(ap->hin, &ap->bufOutHdr[i], sizeof(ap->bufOutHdr[i]));
+				}
+				waveInClose(ap->hin);
+				ap->hin = 0;
+				Rf_error("unable to prepare WMM audio buffer %d for recording (%d)", i, res);
+			}
+			i++;
+		}
+	}
+	    
+	R_PreserveObject(ap->source);
+	
+	Rf_setAttrib(ap->source, Rf_install("rate"), Rf_ScalarInteger(rate)); /* we adjust the rate */
+        Rf_setAttrib(ap->source, Rf_install("bits"), Rf_ScalarInteger(16)); /* we always use 16-bit for recording */
+        Rf_setAttrib(ap->source, Rf_install("class"), Rf_mkString("audioSample"));
+        if (ap->stereo) {
+                SEXP dim = Rf_allocVector(INTSXP, 2);
+                INTEGER(dim)[0] = 2;
+                INTEGER(dim)[1] = LENGTH(ap->source) / 2;
+                Rf_setAttrib(ap->source, R_DimSymbol, dim);
+        }
+	
+	return ap;
+}
+
 static int wmmaudio_start(void *usr) {
 	wmm_instance_t *p = (wmm_instance_t*) usr;
+	if (p->kind == AI_RECORDER) {
+		if (p->hin) return waveInStart(p->hin) ? NO : YES;
+		return NO;
+	}
+	
 	MMRESULT res;
 	WAVEFORMATEX fmt = {
 		WAVE_FORMAT_PCM, 
@@ -230,13 +344,21 @@ static int wmmaudio_pause(void *usr) {
 	wmm_instance_t *p = (wmm_instance_t*) usr;
 	if (p->hout)
 		waveOutPause(p->hout);
+	if (p->hin)
+		waveInStop(p->hin);
 	return 1;
 }
 
 static int wmmaudio_resume(void *usr) {
 	wmm_instance_t *p = (wmm_instance_t*) usr;
+	if (p->kind == AI_RECORDER) {
+		if (p->hin)
+			return waveInStart(p->hin) ? NO : YES;
+		return NO;
+	}
 	/* if buffers have been dequeued before, we need to enqueue them back */
 	if (p->dequeued && p->position < p->length) {
+		unsigned int bufferSize = kOutputBufferSize;
 		int i = 0;
 		while (i < kNumberOutputBuffers) {
 			int pres = primeBuffer(p, p->bufOut[i], bufferSize / (p->stereo ? 4 : 2));
@@ -261,18 +383,20 @@ static int wmmaudio_rewind(void *usr) {
 static int wmmaudio_close(void *usr) {
 	wmm_instance_t *p = (wmm_instance_t*) usr;
 	p->done = YES;
-	waveOutClose(p->hout);
+	if (p->hout)
+		waveOutClose(p->hout);
+	if (p->hin)
+		waveInClose(p->hin);
 	p->hout = 0;
+	p->hin = 0;
 	return 1;
 }
 
 static void wmmaudio_dispose(void *usr) {
 	wmm_instance_t *p = (wmm_instance_t*) usr;
-	int i = 0;
-	if (p->hout)
-		waveOutClose(p->hout);
-	p->hout = 0;
-	while (i < kNumberOutputBuffers) {
+	wmmaudio_close(usr);
+	unsigned int i = 0, j = (p->kind == AI_PLAYER) ? kNumberOutputBuffers : kNumberInputBuffers;
+	while (i < j) {
 		if (p->bufOut[i]) { free(p->bufOut[i]); p->bufOut[i] = 0; }
 		i++;
 	}
@@ -283,7 +407,7 @@ static void wmmaudio_dispose(void *usr) {
 audio_driver_t wmmaudio_audio_driver = {
 	"Windows MultiMedia audio driver",
 	wmmaudio_create_player,
-	0, /* recorder is currently unimplemented */
+	wmmaudio_create_recorder,
 	wmmaudio_start,
 	wmmaudio_pause,
 	wmmaudio_resume,
