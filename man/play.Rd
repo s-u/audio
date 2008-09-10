@@ -9,7 +9,7 @@
 }
 \usage{
 play(x, ...)
-play.default(x, rate=44100)
+play.default(x, rate=44100, ...)
 }
 \arguments{
   \item{x}{data to play}
