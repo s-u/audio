@@ -185,7 +185,7 @@ static void CALLBACK waveInProc(
 			hdr->dwBufferLength = kInputBufferSize;
 			hdr->dwFlags &= WHDR_PREPARED;	/* reset all bits except prepared */
 			if ((hdr->dwFlags & WHDR_PREPARED) == 0)
-				waveInPrepareHeader(ap-hin, hdr, sizeof(*hdr));
+				waveInPrepareHeader(ap->hin, hdr, sizeof(*hdr));
 			/* re-enqueue the buffer */
 			waveInAddBuffer(ap->hin, hdr, sizeof(*hdr));
 		}

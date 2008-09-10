@@ -56,6 +56,8 @@
 %}
 \examples{
 x <- audioSample(sin(1:8000/10), 8000)
+\donttest{
 play(x)
+}
 }
 \keyword{interface}
