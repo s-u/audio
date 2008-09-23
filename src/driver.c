@@ -37,8 +37,14 @@
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
 #endif
+#include <sys/select.h> /* for millisleep */
 
 static audio_driver_t *current_driver;
+
+typedef struct audio_driver_list {
+	audio_driver_t *driver;
+	struct audio_driver_list *next;
+} audio_driver_list_t;
 
 #if HAS_WMM
 extern audio_driver_t wmmaudio_audio_driver;
@@ -50,22 +56,49 @@ extern audio_driver_t portaudio_audio_driver;
 extern audio_driver_t audiounits_audio_driver;
 #endif
 
+static audio_driver_list_t audio_drivers;
+
+static void set_audio_driver(audio_driver_t *driver) {
+	if (audio_drivers.driver == NULL) {
+		current_driver = audio_drivers.driver = driver;
+		return;
+	} else {
+		audio_driver_list_t *l = &audio_drivers;
+		while (l) {
+			if (l->driver == driver) {
+				current_driver = driver;
+				return;
+			}
+			if (l->next == NULL) {
+				l->next = (audio_driver_list_t*) malloc(sizeof(audio_driver_list_t));
+				if (!l->next) Rf_error("out of memory");
+				current_driver = l->next->driver = driver;
+				l->next->next = 0;
+				return;
+			}
+			l = l->next;
+		}
+		/* we should never reach this line */
+	}
+}
+
 /* if no drivers are available, must raise an Rf_error. */
 static void load_default_audio_driver()
 {
+	/* load the drivers in the order of precedence such that the first one is the default one */
 #if HAS_WMM
-  current_driver = &wmmaudio_audio_driver;
-  return;
+	set_audio_driver(&wmmaudio_audio_driver);
 #endif
 #if HAS_AU
-  current_driver = &audiounits_audio_driver;
-  return;
+	set_audio_driver(&audiounits_audio_driver);
 #endif
 #if HAS_PA
-  current_driver = &portaudio_audio_driver;
-  return;
+	set_audio_driver(&portaudio_audio_driver);
 #endif
-  Rf_error("no audio drivers are available");
+	/* pick the first one - it will be NULL if there are no drivers */
+	current_driver = audio_drivers.driver;
+	if (!current_driver)
+		Rf_error("no audio drivers are available");
 }
 
 static void audio_instance_destructor(SEXP instance) {
@@ -74,10 +107,91 @@ static void audio_instance_destructor(SEXP instance) {
 	p->driver->dispose(p); /* it's driver's responsibility to dispose p */
 }
 
+SEXP audio_drivers_list() {
+	int n = 0;
+	SEXP res = Rf_allocVector(VECSXP, 3), sName, sDesc, /* sCopy, */ sCurr, sLN, sRN;
+	audio_driver_list_t *l = &audio_drivers;
+	if (!current_driver)
+		load_default_audio_driver();
+	Rf_protect(res);
+	if (l->driver) {
+		while (l) {
+			n++;
+			l = l->next;
+		}
+	}
+	sName = Rf_allocVector(STRSXP, n); SET_VECTOR_ELT(res, 0, sName);
+	sDesc = Rf_allocVector(STRSXP, n); SET_VECTOR_ELT(res, 1, sDesc);
+	sCurr = Rf_allocVector(LGLSXP, n); SET_VECTOR_ELT(res, 2, sCurr);
+	/* sCopy = Rf_allocVector(STRSXP, n); SET_VECTOR_ELT(res, 3, sCopy); */
+	if (n) {
+		n = 0;
+		l = &audio_drivers;
+		while (l) {
+			const char *s = l->driver->name;
+			SET_STRING_ELT(sName, n, Rf_mkChar(s ? s : ""));
+			s = l->driver->descr;
+			SET_STRING_ELT(sDesc, n, Rf_mkChar(s ? s : ""));
+			s = l->driver->copyright;
+			/* SET_STRING_ELT(sCopy, n, Rf_mkChar(s ? s : "")); */
+			LOGICAL(sCurr)[n] = (l->driver == current_driver) ? 1 : 0;
+			l = l->next;
+			n++;
+		}
+	}
+	sLN = Rf_allocVector(STRSXP, 3);
+	Rf_setAttrib(res, R_NamesSymbol, sLN);
+	SET_STRING_ELT(sLN, 0, Rf_mkChar("name"));
+	SET_STRING_ELT(sLN, 1, Rf_mkChar("description"));
+	SET_STRING_ELT(sLN, 2, Rf_mkChar("current"));
+	/* SET_STRING_ELT(sLN, 3, Rf_mkChar("author")); */
+	sRN = Rf_allocVector(INTSXP, 2);
+	Rf_setAttrib(res, R_RowNamesSymbol, sRN);
+	INTEGER(sRN)[0] = R_NaInt;
+	INTEGER(sRN)[1] = -n;
+	Rf_setAttrib(res, R_ClassSymbol, Rf_mkString("data.frame"));
+	Rf_unprotect(1);
+	return res;	
+}
+
+SEXP audio_current_driver() {
+	return current_driver ? Rf_mkString(current_driver->name) : R_NilValue;
+}
+
+SEXP audio_use_driver(SEXP sName) {
+	if (sName == R_NilValue) { /* equivalent to saying 'load default driver' */
+		if (!current_driver) load_default_audio_driver();
+		current_driver = audio_drivers.driver;
+		if (!current_driver || !current_driver->name) {
+			Rf_warning("no audio drivers are available");
+			return R_NilValue;
+		}
+		return Rf_mkString(current_driver->name);
+	}
+	if (TYPEOF(sName) != STRSXP || LENGTH(sName) < 1)
+		Rf_error("invalid audio driver name");
+	else {
+		const char *drv_name = CHAR(STRING_ELT(sName, 0));
+		audio_driver_list_t *l = &audio_drivers;
+		if (!current_driver)
+			load_default_audio_driver();
+		while (l && l->driver) {
+			if (l->driver->name && !strcmp(l->driver->name, drv_name)) {
+				current_driver = l->driver;
+				return sName;
+			}
+			l = l->next;
+		}			
+		Rf_warning("driver '%s' not found", drv_name);
+	}
+	return R_NilValue;
+}
+
 SEXP audio_load_driver(SEXP path) {
 #ifdef HAS_DLSYM
 	if (TYPEOF(path) == STRSXP && LENGTH(path) > 0) {
 		const char *cPath = CHAR(STRING_ELT(path, 0));
+		audio_driver_t *drv;
 		void *(*fn)();
 		void *ad, *dl = dlopen(cPath, RTLD_LAZY | RTLD_LOCAL); /* try local first */
 		if (!dl) dl = dlopen(cPath, RTLD_LAZY | RTLD_GLOBAL); /* try global if local failed */
@@ -94,7 +208,10 @@ SEXP audio_load_driver(SEXP path) {
 			Rf_error("audio driver could not be initialized");
 		}
 		/* FIXME: we never unload the driver module ... */
-		current_driver = (audio_driver_t*) ad;
+		drv = (audio_driver_t*) ad;
+		if (!drv) Rf_error("unable to initialize the audio driver");
+		if (drv->length != sizeof(audio_driver_t)) Rf_error("the driver is incompatible with this version of the audio package");
+		current_driver = drv;		
 		return Rf_mkString(current_driver->name);
 	} else
 		Rf_error("invalid module name");
@@ -192,6 +309,14 @@ SEXP audio_driver_name(SEXP instance) {
 	return Rf_mkString(p->driver->name);
 }
 
+SEXP audio_driver_descr(SEXP instance) {
+	if (TYPEOF(instance) != EXTPTRSXP)
+		Rf_error("invalid audio instance");
+	audio_instance_t *p = (audio_instance_t *) EXTPTR_PTR(instance);
+	if (!p) Rf_error("invalid audio instance");
+	return Rf_mkString(p->driver->descr);
+}
+
 SEXP audio_instance_type(SEXP instance) {
 	if (TYPEOF(instance) != EXTPTRSXP)
 		Rf_error("invalid audio instance");
@@ -200,12 +325,44 @@ SEXP audio_instance_type(SEXP instance) {
 	return Rf_ScalarInteger(p->kind);
 }
 
+static void millisleep(double tout) {
+	struct timeval tv;
+	tv.tv_sec  = (unsigned int) tout;
+	tv.tv_usec = (unsigned int)((tout - ((double)tv.tv_sec)) * 1000000.0);
+	select(0, 0, 0, 0, &tv);
+}
+
+static int fallback_wait(double timeout) {
+	if (timeout < 0) timeout = 9999999.0; /* really a dummy high number */
+	while (1) {
+		/* use 100ms slices */
+		double slice = (timeout > 0.1) ? 0.1 : timeout;
+		if (slice <= 0.0) break;
+		millisleep(slice);
+		R_CheckUserInterrupt(); /* FIXME: we should adjust for time spent processing events */
+		timeout -= slice;
+	}
+	return WAIT_TIMEOUT;
+}
+
 SEXP audio_instance_source(SEXP instance) {
 	if (TYPEOF(instance) != EXTPTRSXP)
 		Rf_error("invalid audio instance");
 	audio_instance_t *p = (audio_instance_t *) EXTPTR_PTR(instance);
 	if (!p) Rf_error("invalid audio instance");
 	return p->source;
+}
+
+SEXP audio_wait(SEXP instance, SEXP timeout) {
+	if (instance == R_NilValue) { /* unlike other functions we allow NULL for a system-wide sleep without any event */
+		if (current_driver && current_driver->wait) return Rf_ScalarInteger(current_driver->wait(NULL, Rf_asReal(timeout)));
+		return Rf_ScalarInteger(fallback_wait(Rf_asReal(timeout)));
+	}
+	if (TYPEOF(instance) != EXTPTRSXP)
+		Rf_error("invalid audio instance");
+	audio_instance_t *p = (audio_instance_t *) EXTPTR_PTR(instance);
+	if (!p) Rf_error("invalid audio instance");
+	return Rf_ScalarInteger(p->driver->wait ? p->driver->wait(p, Rf_asReal(timeout)) : WAIT_ERROR);
 }
 
 SEXP audio_instance_address(SEXP instance) {

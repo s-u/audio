@@ -37,6 +37,17 @@
 
 #include "portaudio.h"
 
+#ifdef __WIN32__
+#include <windows.h>
+#else
+#include <Rconfig.h> /* for HAVE_AQUA needed in wait */
+#include <sys/select.h>
+#include <R_ext/eventloop.h>
+#ifndef unix
+#define unix 1
+#endif
+#endif
+
 #define kNumberOutputBuffers 2
 /* #define USEFLOAT 1 */
 
@@ -181,6 +192,39 @@ static int portaudio_rewind(void *usr) {
 	return 1;
 }
 
+#ifdef unix
+/* helper function - precise sleep */
+static void millisleep(double tout) {
+	struct timeval tv;
+	tv.tv_sec  = (unsigned int) tout;
+	tv.tv_usec = (unsigned int)((tout - ((double)tv.tv_sec)) * 1000000.0);
+	select(0, 0, 0, 0, &tv);
+}
+#endif
+
+static int portaudio_wait(void *usr, double timeout) {
+	play_info_t *p = (play_info_t*) usr;
+	if (timeout < 0) timeout = 9999999.0; /* really a dummy high number */
+	while (p == NULL || !p->done) {
+		/* use 100ms slices */
+		double slice = (timeout > 0.1) ? 0.1 : timeout;
+		if (slice <= 0.0) break;
+#ifdef unix
+		millisleep(slice);
+#if HAVE_AQUA
+		R_ProcessEvents();
+#else
+		R_checkActivity(0, 0); /* FIXME: we should adjust for time spent processing events */
+#endif
+#else
+		Sleep((DWORD) (slice * 1000));
+		R_ProcessEvents();
+#endif
+		timeout -= slice;
+	}
+	return (p && p->done) ? WAIT_DONE : WAIT_TIMEOUT;
+}
+
 static int portaudio_close(void *usr) {
 	play_info_t *p = (play_info_t*) usr;
     PaError err = Pa_CloseStream( p->stream );
@@ -194,13 +238,19 @@ static void portaudio_dispose(void *usr) {
 
 /* define the audio driver */
 audio_driver_t portaudio_audio_driver = {
+	sizeof(audio_driver_t),
+
+	"portaudio",
 	"PortAudio driver",
+	"Copyright(c) 2008 Simon Urbanek",
+
 	portaudio_create_player,
 	0, /* recorder is currently unimplemented */
 	portaudio_start,
 	portaudio_pause,
 	portaudio_resume,
 	portaudio_rewind,
+	portaudio_wait,
 	portaudio_close,
 	portaudio_dispose
 };

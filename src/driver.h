@@ -48,15 +48,24 @@
 
 #define APFLAG_LOOP   0x0001
 
+#define WAIT_DONE     1
+#define WAIT_TIMEOUT  2
+#define WAIT_ERROR   -1
+
 /* define driver structure */
 typedef struct audio_driver {
-	const char *name;
+	unsigned int length; /* length of the driver structure, i.e., sizeof(audio_driver_t) */
+	const char *name;  /* short identifier */
+	const char *descr; /* description */
+	const char *copyright; /* copyright (optional) */
+
 	struct audio_instance *(*create_player)(SEXP, float, int); /* source, rate (if applicable), flags */
-	struct audio_instance *(*create_recorder)(SEXP, float, int, int); /* target, rate, channels, flags */
+	struct audio_instance *(*create_recorder)(SEXP, float, int, int); /* target, rate, channels, flags; (optional) */
 	int (*start)(void *);
 	int (*pause)(void *);
 	int (*resume)(void *);
 	int (*rewind)(void *);
+	int (*wait)(void *, double timeout);
 	int (*close)(void *);
 	void (*dispose)(void *);
 } audio_driver_t;

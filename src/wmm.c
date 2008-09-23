@@ -380,6 +380,20 @@ static int wmmaudio_rewind(void *usr) {
 	return 1;
 }
 
+static int wmmaudio_wait(void *usr, double timeout) {
+	wmm_instance_t *p = (wmm_instance_t*) usr;
+	if (timeout < 0) timeout = 9999999.0; /* really a dummy high number */
+	while (p == NULL || !p->done) {
+		/* use 100ms slices */
+		double slice = (timeout > 0.1) ? 0.1 : timeout;
+		if (slice <= 0.0) break;
+		Sleep((DWORD) (slice * 1000));
+		R_ProcessEvents(); /* FIXME: we should adjust for time spent processing events */
+		timeout -= slice;
+	}
+	return (p && p->done) ? WAIT_DONE : WAIT_TIMEOUT;
+}
+
 static int wmmaudio_close(void *usr) {
 	wmm_instance_t *p = (wmm_instance_t*) usr;
 	p->done = YES;
@@ -405,13 +419,19 @@ static void wmmaudio_dispose(void *usr) {
 
 /* define the audio driver */
 audio_driver_t wmmaudio_audio_driver = {
+	sizeof(audio_driver_t),	       
+
+	"wmm",
 	"Windows MultiMedia audio driver",
+	"Copyright(c) 2008 Simon Urbanek",
+
 	wmmaudio_create_player,
 	wmmaudio_create_recorder,
 	wmmaudio_start,
 	wmmaudio_pause,
 	wmmaudio_resume,
 	wmmaudio_rewind,
+	wmmaudio_wait,
 	wmmaudio_close,
 	wmmaudio_dispose
 };

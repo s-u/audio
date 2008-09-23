@@ -36,6 +36,7 @@
 
 #if HAS_AU
 #include <AudioUnit/AudioUnit.h>
+#include <sys/select.h> /* for select in millisleep */
 
 #define kNumberOutputBuffers 3
 #define kOutputBufferSize 4096
@@ -188,7 +189,10 @@ static OSStatus inputRenderProc(AudioDeviceID inDevice,
 		ap->srRun = srr;
 	}
 	/* pause the unit when the recording is complete */
-	if (ap->position >= ap->length) audiounits_pause(ap);
+	if (ap->position >= ap->length) {
+		ap->done = YES;
+		audiounits_pause(ap);
+	}
 	return 0;
 }
 
@@ -296,6 +300,28 @@ static int audiounits_resume(void *usr) {
 	return AudioOutputUnitStart(p->outUnit) ? 0 : 1;
 }
 
+/* helper function - precise sleep */
+static void millisleep(double tout) {
+	struct timeval tv;
+	tv.tv_sec  = (unsigned int) tout;
+	tv.tv_usec = (unsigned int)((tout - ((double)tv.tv_sec)) * 1000000.0);
+	select(0, 0, 0, 0, &tv);
+}
+
+static int audiounits_wait(void *usr, double timeout) {
+	au_instance_t *p = (au_instance_t*) usr;
+	if (timeout < 0) timeout = 9999999.0; /* really a dummy high number */
+	while (p == NULL || !p->done) {
+		/* use 100ms slices */
+		double slice = (timeout > 0.1) ? 0.1 : timeout;
+		if (slice <= 0.0) break;
+		millisleep(slice);
+		R_ProcessEvents(); /* FIXME: we should adjust for time spent processing events */
+		timeout -= slice;
+	}
+	return (p && p->done) ? WAIT_DONE : WAIT_TIMEOUT;
+}
+
 static int audiounits_close(void *usr) {
 	au_instance_t *p = (au_instance_t*) usr;
 	p->done = YES;
@@ -332,13 +358,17 @@ static void audiounits_dispose(void *usr) {
 
 /* define the audio driver */
 audio_driver_t audiounits_audio_driver = {
+	sizeof(audio_driver_t),
+	"macosx",
 	"AudioUnits (Mac OS X) driver",
+	"Copyright(c) 2008 Simon Urbanek",
 	audiounits_create_player,
 	audiounits_create_recorder,
 	audiounits_start,
 	audiounits_pause,
 	audiounits_resume,
 	audiounits_rewind,
+	audiounits_wait,
 	audiounits_close,
 	audiounits_dispose
 };

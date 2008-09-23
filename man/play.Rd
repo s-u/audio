@@ -1,6 +1,8 @@
 \name{play}
 \alias{play}
 \alias{play.default}
+\alias{play.audioSample}
+\alias{play.Sample}
 \title{
   Play audio
 }
@@ -9,11 +11,13 @@
 }
 \usage{
 play(x, ...)
+play.audioSample(x, rate, ...)
+play.Sample(x, ...) 
 play.default(x, rate=44100, ...)
 }
 \arguments{
   \item{x}{data to play}
-  \item{rate}{sample rate}
+  \item{rate}{sample rate - it is inferred from the object (where possible) if not specified}
   \item{...}{optional arguments passed to the method specific to the object being played}
 }
 \value{

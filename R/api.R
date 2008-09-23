@@ -2,6 +2,7 @@ play <- function(x, ...) UseMethod("play")
 pause <- function(x, ...) UseMethod("pause")
 resume <- function(x, ...) UseMethod("resume")
 rewind <- function(x, ...) UseMethod("rewind")
+wait <- function(x, ...) UseMethod("wait")
 
 record <- function(where, rate, channels) {
   if (missing(rate)) {
@@ -30,6 +31,15 @@ rewind.audioInstance <- function(x, ...)
 
 close.audioInstance <- function(con, ...)
   invisible(.Call("audio_close", con, PACKAGE="audio"))
+
+wait.audioInstance <- function(x, timeout=NA, ...)
+  invisible(.Call("audio_wait", x, if (any(is.na(timeout))) -1 else as.double(timeout), PACKAGE="audio"))
+
+wait.default <- function(x, timeout, ...) {
+  if (missing(timeout))
+    timeout <- if (is.numeric(x)) x else NA
+  invisible(.Call("audio_wait", NULL, if(any(is.na(timeout))) -1 else as.double(timeout), PACKAGE="audio"))
+}
 
 play.default <- function(x, rate=44100, ...) {
   a <- .Call("audio_player", x, rate, PACKAGE="audio")
