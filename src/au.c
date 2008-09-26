@@ -316,7 +316,7 @@ static int audiounits_wait(void *usr, double timeout) {
 		double slice = (timeout > 0.1) ? 0.1 : timeout;
 		if (slice <= 0.0) break;
 		millisleep(slice);
-		R_ProcessEvents(); /* FIXME: we should adjust for time spent processing events */
+		R_CheckUserInterrupt(); /* FIXME: we should adjust for time spent processing events */
 		timeout -= slice;
 	}
 	return (p && p->done) ? WAIT_DONE : WAIT_TIMEOUT;
@@ -325,7 +325,7 @@ static int audiounits_wait(void *usr, double timeout) {
 static int audiounits_close(void *usr) {
 	au_instance_t *p = (au_instance_t*) usr;
 	p->done = YES;
-	Rprintf(" closing audiounit %p\n", usr);
+	/* Rprintf(" closing audiounit %p\n", usr); */
 	if (p->outUnit) {
 		AudioOutputUnitStop(p->outUnit);
 		AudioUnitUninitialize(p->outUnit);
