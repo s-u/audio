@@ -56,8 +56,26 @@ AC_SEARCH_LIBS(dlsym, dl, [AC_DEFINE(HAS_DLSYM, 1, [defined if the system suppor
 
 has_pa=no
 AC_CHECK_HEADERS([portaudio.h],[
-  AC_SEARCH_LIBS(Pa_Initialize, portaudio, [has_pa=yes
-AC_DEFINE(HAS_PA, 1, [defined if PortAudio is available])])
+  AC_SEARCH_LIBS(Pa_Initialize, portaudio, [
+AC_MSG_CHECKING([for working PortAudio (API>=2)])
+AC_LINK_IFELSE([[#include "portaudio.h"
+static int paPlayCallback(const void *inputBuffer, void *outputBuffer,
+ unsigned long framesPerBuffer, const PaStreamCallbackTimeInfo* timeInfo,
+ PaStreamCallbackFlags statusFlags, void *userData )
+{ return 1; };
+int
+main ()
+{
+  PaStream *stream;
+  PaError err = Pa_Initialize();
+  err = Pa_OpenDefaultStream(&stream,0,1,paFloat32,44100.0,1024,paPlayCallback,0);
+  return 0;
+}
+]], [has_pa=yes
+AC_MSG_RESULT([yes])
+AC_DEFINE(HAS_PA, 1, [defined if PortAudio is available])
+  ], [AC_MSG_RESULT([no])])
+  ])
 ])
 
 # in any case configure produces config.h so we want to use it

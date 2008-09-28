@@ -3779,11 +3779,62 @@ echo "${ECHO_T}$ac_cv_search_Pa_Initialize" >&6; }
 ac_res=$ac_cv_search_Pa_Initialize
 if test "$ac_res" != no; then
   test "$ac_res" = "none required" || LIBS="$ac_res $LIBS"
+
+{ echo "$as_me:$LINENO: checking for working PortAudio (API>=2)" >&5
+echo $ECHO_N "checking for working PortAudio (API>=2)... $ECHO_C" >&6; }
+cat >conftest.$ac_ext <<_ACEOF
+#include "portaudio.h"
+static int paPlayCallback(const void *inputBuffer, void *outputBuffer,
+ unsigned long framesPerBuffer, const PaStreamCallbackTimeInfo* timeInfo,
+ PaStreamCallbackFlags statusFlags, void *userData )
+{ return 1; };
+int
+main ()
+{
+  PaStream *stream;
+  PaError err = Pa_Initialize();
+  err = Pa_OpenDefaultStream(&stream,0,1,paFloat32,44100.0,1024,paPlayCallback,0);
+  return 0;
+}
+
+_ACEOF
+rm -f conftest.$ac_objext conftest$ac_exeext
+if { (ac_try="$ac_link"
+case "(($ac_try" in
+  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
+  *) ac_try_echo=$ac_try;;
+esac
+eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
+  (eval "$ac_link") 2>conftest.er1
+  ac_status=$?
+  grep -v '^ *+' conftest.er1 >conftest.err
+  rm -f conftest.er1
+  cat conftest.err >&5
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && {
+	 test -z "$ac_c_werror_flag" ||
+	 test ! -s conftest.err
+       } && test -s conftest$ac_exeext &&
+       $as_test_x conftest$ac_exeext; then
   has_pa=yes
+{ echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6; }
 
 cat >>confdefs.h <<\_ACEOF
 #define HAS_PA 1
 _ACEOF
+
+
+else
+  echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+	{ echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6; }
+fi
+
+rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
+      conftest$ac_exeext conftest.$ac_ext
 
 fi
 
