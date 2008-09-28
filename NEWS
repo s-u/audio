@@ -1,6 +1,6 @@
 NEWS for audio package
 
-0.1-1	 (under development)
+0.1-1	 2008-09-28
     o	 remove spurious debugging output from macosx driver
 
     o	 fix configuration issue on systems without ObjC
