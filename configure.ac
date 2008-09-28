@@ -38,7 +38,8 @@ main ()
   return 0;
 }
 ]], [has_au=yes
-AC_DEFINE(HAS_AU, 1, [defined if AudioUnits are available])])
+AC_DEFINE(HAS_AU, 1, [defined if AudioUnits are available])],
+[LIBS="${save_LIBS}"])
 AC_MSG_RESULT([${has_au}])
 
 # find PortAudio (first try pkg-config)
