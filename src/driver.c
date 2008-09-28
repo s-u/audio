@@ -83,7 +83,7 @@ static void set_audio_driver(audio_driver_t *driver) {
 }
 
 /* if no drivers are available, must raise an Rf_error. */
-static void load_default_audio_driver()
+static void load_default_audio_driver(int silent)
 {
 	/* load the drivers in the order of precedence such that the first one is the default one */
 #if HAS_WMM
@@ -97,7 +97,7 @@ static void load_default_audio_driver()
 #endif
 	/* pick the first one - it will be NULL if there are no drivers */
 	current_driver = audio_drivers.driver;
-	if (!current_driver)
+	if (!silent && !current_driver)
 		Rf_error("no audio drivers are available");
 }
 
@@ -112,7 +112,7 @@ SEXP audio_drivers_list() {
 	SEXP res = Rf_allocVector(VECSXP, 3), sName, sDesc, /* sCopy, */ sCurr, sLN, sRN;
 	audio_driver_list_t *l = &audio_drivers;
 	if (!current_driver)
-		load_default_audio_driver();
+		load_default_audio_driver(1);
 	Rf_protect(res);
 	if (l->driver) {
 		while (l) {
@@ -160,7 +160,7 @@ SEXP audio_current_driver() {
 
 SEXP audio_use_driver(SEXP sName) {
 	if (sName == R_NilValue) { /* equivalent to saying 'load default driver' */
-		if (!current_driver) load_default_audio_driver();
+		if (!current_driver) load_default_audio_driver(1);
 		current_driver = audio_drivers.driver;
 		if (!current_driver || !current_driver->name) {
 			Rf_warning("no audio drivers are available");
@@ -174,7 +174,7 @@ SEXP audio_use_driver(SEXP sName) {
 		const char *drv_name = CHAR(STRING_ELT(sName, 0));
 		audio_driver_list_t *l = &audio_drivers;
 		if (!current_driver)
-			load_default_audio_driver();
+			load_default_audio_driver(1);
 		while (l && l->driver) {
 			if (l->driver->name && !strcmp(l->driver->name, drv_name)) {
 				current_driver = l->driver;
@@ -224,7 +224,7 @@ SEXP audio_load_driver(SEXP path) {
 SEXP audio_player(SEXP source, SEXP rate) {
 	float fRate = -1.0;
 	if (!current_driver)
-		load_default_audio_driver();
+		load_default_audio_driver(0);
 	if (TYPEOF(rate) == INTSXP || TYPEOF(rate) == REALSXP)
 		fRate = (float) Rf_asReal(rate);
 	audio_instance_t *p = current_driver->create_player(source, fRate, 0);
@@ -243,7 +243,7 @@ SEXP audio_recorder(SEXP source, SEXP rate, SEXP channels) {
 	float fRate = -1.0;
 	int chs = Rf_asInteger(channels);
 	if (!current_driver)
-		load_default_audio_driver();
+		load_default_audio_driver(0);
 	if (TYPEOF(rate) == INTSXP || TYPEOF(rate) == REALSXP)
 		fRate = (float) Rf_asReal(rate);
 	if (chs < 1) chs = 1;
