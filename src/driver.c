@@ -330,7 +330,7 @@ SEXP audio_instance_type(SEXP instance) {
 }
 
 #if __WIN32__
-#define millisleep(X) Sleep((DWORD)(((double)()X)*1000.0))
+#define millisleep(X) Sleep((DWORD)(((double)(X))*1000.0))
 #else
 static void millisleep(double tout) {
 	struct timeval tv;
