@@ -1,5 +1,8 @@
 NEWS for audio package
 
+0.1-3	 2008-09-30
+    o	 fix a Windows incompatibility introduced by wait()
+
 0.1-2	 2008-09-29
     o	 pass check even if no drivers are available
 

@@ -37,7 +37,11 @@
 #ifdef HAVE_DLFCN_H
 #include <dlfcn.h>
 #endif
+#ifdef __WIN32__
+#include <windows.h>
+#else
 #include <sys/select.h> /* for millisleep */
+#endif
 
 static audio_driver_t *current_driver;
 
@@ -325,12 +329,16 @@ SEXP audio_instance_type(SEXP instance) {
 	return Rf_ScalarInteger(p->kind);
 }
 
+#if __WIN32__
+#define millisleep(X) Sleep((DWORD)(((double)()X)*1000.0))
+#else
 static void millisleep(double tout) {
 	struct timeval tv;
 	tv.tv_sec  = (unsigned int) tout;
 	tv.tv_usec = (unsigned int)((tout - ((double)tv.tv_sec)) * 1000000.0);
 	select(0, 0, 0, 0, &tv);
 }
+#endif
 
 static int fallback_wait(double timeout) {
 	if (timeout < 0) timeout = 9999999.0; /* really a dummy high number */
