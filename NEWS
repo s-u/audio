@@ -1,9 +1,9 @@
 NEWS for audio package
 
-0.1-4	(under development)
-    o	WMM: fix format issue which causes play/record to fail on Windows 7
+0.1-4	2011-01-14
+    o	WMM: fix format issue which causes play/record to fail on Windows7
 
-    o	WMM: fix 64-bit compatibility
+    o	WMM: ensure 64-bit compatibility
 
 0.1-3	2008-09-30
     o	fix a Windows incompatibility introduced by wait()
