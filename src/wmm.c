@@ -228,8 +228,8 @@ static wmm_instance_t *wmmaudio_create_recorder(SEXP source, float rate, int cha
 		WAVE_FORMAT_PCM, 
 		ap->stereo ? 2 : 1,
 		(unsigned int) ap->sample_rate,
-		((unsigned int) ap->sample_rate) * (ap->stereo ? 2 : 4),
-		ap->stereo ? 2 : 4,
+		((unsigned int) ap->sample_rate) * (ap->stereo ? 4 : 2),
+		ap->stereo ? 4 : 2,
 		16,
 		0
 	};
@@ -249,7 +249,7 @@ static wmm_instance_t *wmmaudio_create_recorder(SEXP source, float rate, int cha
 			ap->bufOutHdr[i].lpData = (LPSTR) ap->bufOut[i];
 			ap->bufOutHdr[i].dwBufferLength = bufferSize;
 			ap->bufOutHdr[i].dwBytesRecorded = 0;
-			ap->bufOutHdr[i].dwUser = (DWORD) ap;
+			ap->bufOutHdr[i].dwUser = (DWORD_PTR) ap;
 			res = waveInPrepareHeader(ap->hin, &ap->bufOutHdr[i], sizeof(ap->bufOutHdr[i]));
 			if (res || waveInAddBuffer(ap->hin, &ap->bufOutHdr[i], sizeof(ap->bufOutHdr[i]))) {
 				while (i >= 0) {
@@ -293,8 +293,8 @@ static int wmmaudio_start(void *usr) {
 		WAVE_FORMAT_PCM, 
 		p->stereo ? 2 : 1,
 		(unsigned int) p->sample_rate,
-		((unsigned int) p->sample_rate) * (p->stereo ? 2 : 4),
-		p->stereo ? 2 : 4,
+		((unsigned int) p->sample_rate) * (p->stereo ? 4 : 2),
+		p->stereo ? 4 : 2,
 		16,
 		0
 	};
@@ -311,7 +311,7 @@ static int wmmaudio_start(void *usr) {
 			memset(&p->bufOutHdr[i], 0, sizeof(p->bufOutHdr[i]));
 			p->bufOutHdr[i].lpData = (LPSTR) p->bufOut[i];
 			p->bufOutHdr[i].dwBufferLength = p->bufOutHdr[i].dwBytesRecorded = bufferSize;
-			p->bufOutHdr[i].dwUser = (DWORD) p;
+			p->bufOutHdr[i].dwUser = (DWORD_PTR) p;
 			res = waveOutPrepareHeader(p->hout, &p->bufOutHdr[i], sizeof(p->bufOutHdr[i]));
 			if (res) {
 				while (i >= 0) {
