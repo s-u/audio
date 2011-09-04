@@ -17,19 +17,19 @@
   associated with an audio instance - i.e. played or recorded content.
 }
 \usage{
-`$.audioInstance`(x, name)
-resume.audioInstance(x, ...)
-pause.audioInstance(x, ...)
-rewind.audioInstance(x, ...)
-close.audioInstance(con, ...)
-play.audioInstance(x, ...)
-print.audioInstance(x, ...)
+\method{$}{audioInstance}(x, name)
+\method{resume}{audioInstance}(x, \dots)
+\method{pause}{audioInstance}(x, \dots)
+\method{rewind}{audioInstance}(x, \dots)
+\method{close}{audioInstance}(con, \dots)
+\method{play}{audioInstance}(x, \dots)
+\method{print}{audioInstance}(x, \dots)
 }
 \arguments{
   \item{x}{audio instance}
   \item{name}{name of the attribute - currently only "data" is supported}
   \item{con}{audio instance (the name is unfortuantely defined in the \code{close} generic like this)}
-  \item{...}{ignored}
+  \item{\dots}{ignored}
 }
 %\seealso{
 %  \code{\link{.jcall}}, \code{\link{.jnull}}

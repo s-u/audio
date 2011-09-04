@@ -6,6 +6,6 @@ rm -rf /tmp/${PNAME}
 mkdir /tmp/${PNAME} && cp -r . /tmp/${PNAME} && \
 cd /tmp && (find ${PNAME}/ -name .svn -or -name \*~ | xargs rm -rf) && \
 rm -rf /tmp/${PNAME}/autom* /tmp/${PNAME}/a.out* /tmp/${PNAME}/config.* /tmp/${PNAME}/src/Makevars /tmp/${PNAME}/src/config.h && \
-tar fcz "${PDIR}/../${PNAME}_${VER}.tar.gz" ${PNAME}
+R CMD build ${PNAME} && cp ${PNAME}_${VER}.tar.gz "${PDIR}/../${PNAME}_${VER}.tar.gz"
 cd "${PDIR}"
 ls -l "../${PNAME}_${VER}.tar.gz"

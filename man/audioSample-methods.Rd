@@ -13,18 +13,18 @@
   the attributes and class of the objects.
 }
 \usage{
-  `$.audioSample`(x, name)
-  `$<-.audioSample`(x, name, value)
-  `[.audioSample`(x, ..., drop = FALSE)
-  as.Sample.audioSample(x, ...) 
-  print.audioSample(x, ...)
+  \method{$}{audioSample}(x, name)
+  \method{$}{audioSample}(x, name) <- value
+  \method{[}{audioSample}(x, \dots, drop = FALSE)
+  \method{as.Sample}{audioSample}(x, ...) 
+  \method{print}{audioSample}(x, ...)
 }
 \arguments{
   \item{x}{sample object}
   \item{name}{name of the attribute to get/set}
   \item{value}{value to set}
   \item{drop}{see \code{`[`} operator documentation}
-  \item{...}{parameters passed to the object-specific method}
+  \item{\dots}{parameters passed to the object-specific method}
 }
 %\seealso{
 %  \code{\link{.jcall}}, \code{\link{.jnull}}

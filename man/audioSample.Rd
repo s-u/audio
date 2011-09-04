@@ -33,9 +33,9 @@
 }
 \usage{
   audioSample(x, rate=44100, bits=16, clip = TRUE)
-  as.audioSample(x, ...)
-  as.audioSample.default(x, rate, bits, clip, ...)
-  as.audioSample.Sample(x, ...)  
+  as.audioSample(x, \dots)
+  \method{as.audioSample}{default}(x, rate, bits, clip, \dots)
+  \method{as.audioSample}{Sample}(x, \dots)
 }
 \arguments{
   \item{x}{object to convert or initilize with}
@@ -45,7 +45,7 @@
   \item{clip}{boolean value determining whether the source should be
   clipped to a range between -1 and 1. Values outside this range
   result in undefined behavior.}
-  \item{...}{parameters passed to the object-specific method}
+  \item{\dots}{parameters passed to the object-specific method}
 }
 \value{
   \code{audioSample} and \code{as.audioSample} return an audio sample

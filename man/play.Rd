@@ -10,15 +10,15 @@
   \code{play} plays audio
 }
 \usage{
-play(x, ...)
-play.audioSample(x, rate, ...)
-play.Sample(x, ...) 
-play.default(x, rate=44100, ...)
+play(x, \dots)
+\method{play}{audioSample}(x, rate, \dots)
+\method{play}{Sample}(x, \dots) 
+\method{play}{default}(x, rate = 44100, \dots)
 }
 \arguments{
   \item{x}{data to play}
   \item{rate}{sample rate - it is inferred from the object (where possible) if not specified}
-  \item{...}{optional arguments passed to the method specific to the object being played}
+  \item{\dots}{optional arguments passed to the method specific to the object being played}
 }
 \value{
   Returns an audio instance object which can be used to control the playback subsequently.

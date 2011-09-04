@@ -9,14 +9,14 @@
   \code{wait} waits until an event occurs or times out
 }
 \usage{
-wait(x, ...)
-wait.default(x, timeout, ...)
-wait.audioInstance(x, timeout=NA, ...)
+wait(x, \dots)
+\method{wait}{default}(x, timeout, \dots)
+\method{wait}{audioInstance}(x, timeout=NA, \dots)
 }
 \arguments{
   \item{x}{event to wait for}
   \item{timeout}{longest period to wait for (in seconds, real number). A value of 0 causes \code{wait} to just check for the event, values \code{NA} and less than zero mean to wait indefinitely until the even occurs.}
-  \item{...}{optional arguments passed to the method specific to the object being monitored}
+  \item{\dots}{optional arguments passed to the method specific to the object being monitored}
 }
 \value{
   Returns the result.
