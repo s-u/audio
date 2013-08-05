@@ -47,6 +47,16 @@
 #define NO 0
 #endif
 
+#ifdef NEED_AUDIO_PREFIX
+#include <CoreAudio/CoreAudio.h>
+#define Component AudioComponent
+#define FindNextComponent AudioComponentFindNext
+#define ComponentDescription AudioComponentDescription
+#define OpenAComponent AudioComponentInstanceNew
+#define CloseComponent AudioComponentInstanceDispose
+/* Note: AudioObjectGetPropertyData will replace AudioHardwareGetProperty */
+#endif
+
 typedef struct au_instance {
 	/* the following entries must be present since play_info_t inherits from audio_instance_t */
 	audio_driver_t *driver;  /* must point to the driver that created this */

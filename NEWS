@@ -3,6 +3,8 @@ NEWS for audio package
 0.1-5	(under development)
     o	minor documentation cleanups
 
+    o	update AudioUnit API so it works on more recent OS X versions
+
 0.1-4	2011-01-14
     o	WMM: fix format issue which causes play/record to fail on Windows7
 

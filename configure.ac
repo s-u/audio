@@ -39,7 +39,22 @@ main ()
 }
 ]], [has_au=yes
 AC_DEFINE(HAS_AU, 1, [defined if AudioUnits are available])],
+[## try with Audio prefix
+AC_LINK_IFELSE([[#include <AudioUnit/AudioUnit.h>                               
+int
+main ()
+{
+  AudioComponent comp = 0;
+  AudioComponentInstance outUnit;
+  OpenAComponent(comp, &outUnit);
+  AudioUnitInitialize(outUnit);
+  return 0;
+}
+]], [has_au=yes
+AC_DEFINE(HAS_AU, 1, [defined if AudioUnits are available])
+AC_DEFINE(NEED_AUDIO_PREFIX, 1, [defined if AU Components need Audio prefix])],
 [LIBS="${save_LIBS}"])
+])
 AC_MSG_RESULT([${has_au}])
 
 # find PortAudio (first try pkg-config)
