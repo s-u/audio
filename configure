@@ -2854,7 +2854,7 @@ if ac_fn_c_try_link "$LINENO"; then :
 $as_echo "#define HAS_AU 1" >>confdefs.h
 
 else
-  ## try with Audio prefix
+  ## try with new API that removes Components
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 #include <AudioUnit/AudioUnit.h>
@@ -2863,7 +2863,7 @@ main ()
 {
   AudioComponent comp = 0;
   AudioComponentInstance outUnit;
-  OpenAComponent(comp, &outUnit);
+  AudioComponentInstanceNew(comp, &outUnit);
   AudioUnitInitialize(outUnit);
   return 0;
 }

@@ -39,14 +39,14 @@ main ()
 }
 ]], [has_au=yes
 AC_DEFINE(HAS_AU, 1, [defined if AudioUnits are available])],
-[## try with Audio prefix
+[## try with new API that removes Components
 AC_LINK_IFELSE([[#include <AudioUnit/AudioUnit.h>                               
 int
 main ()
 {
   AudioComponent comp = 0;
   AudioComponentInstance outUnit;
-  OpenAComponent(comp, &outUnit);
+  AudioComponentInstanceNew(comp, &outUnit);
   AudioUnitInitialize(outUnit);
   return 0;
 }
