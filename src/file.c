@@ -219,7 +219,7 @@ SEXP save_wave_file(SEXP where, SEXP what) {
 	
 	{
 		const char *fName = CHAR(STRING_ELT(where, 0));
-		riff_header_t rh = { "RIFF", size + 44, "WAVE" };
+		riff_header_t rh = { "RIFF", size + 36, "WAVE" };
 		wav_fmt_t fmt = { "fmt ", 16, 1, chs, rate, rate * bps, bps, bits };
 		riff_chunk_t rc = { "data", size };
 		FILE *f = fopen(fName, "wb");
