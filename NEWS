@@ -5,6 +5,8 @@ NEWS for audio package
 
     o	minor changes to configure.ac
 
+    o	add C symbol registration
+
 0.1-5	2013-12-23
     o	minor documentation cleanups
 

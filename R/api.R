@@ -15,35 +15,35 @@ record <- function(where, rate, channels) {
   if (length(channels) != 1 || (channels != 1 && channels != 2))
     stop("channels must be 1 (mono) or 2 (stereo)")
   if (length(where) == 1) where <- if (channels == 2) matrix(NA_real_, 2, where) else rep(NA_real_, where)
-  a <- .Call("audio_recorder", where, as.double(rate), as.integer(channels), PACKAGE="audio")
-  .Call("audio_start", a, PACKAGE="audio")
+  a <- .Call(audio_recorder, where, as.double(rate), as.integer(channels), PACKAGE="audio")
+  .Call(audio_start, a, PACKAGE="audio")
   invisible(a)
 }
 
 pause.audioInstance <- function(x, ...)
-  invisible(.Call("audio_pause", x, PACKAGE="audio"))
+  invisible(.Call(audio_pause, x, PACKAGE="audio"))
 
 resume.audioInstance <- function(x, ...)
-  invisible(.Call("audio_resume", x, PACKAGE="audio"))
+  invisible(.Call(audio_resume, x, PACKAGE="audio"))
 
 rewind.audioInstance <- function(x, ...)
-  invisible(.Call("audio_rewind", x, PACKAGE="audio"))
+  invisible(.Call(audio_rewind, x, PACKAGE="audio"))
 
 close.audioInstance <- function(con, ...)
-  invisible(.Call("audio_close", con, PACKAGE="audio"))
+  invisible(.Call(audio_close, con, PACKAGE="audio"))
 
 wait.audioInstance <- function(x, timeout=NA, ...)
-  invisible(.Call("audio_wait", x, if (any(is.na(timeout))) -1 else as.double(timeout), PACKAGE="audio"))
+  invisible(.Call(audio_wait, x, if (any(is.na(timeout))) -1 else as.double(timeout), PACKAGE="audio"))
 
 wait.default <- function(x, timeout, ...) {
   if (missing(timeout))
     timeout <- if (is.numeric(x)) x else NA
-  invisible(.Call("audio_wait", NULL, if(any(is.na(timeout))) -1 else as.double(timeout), PACKAGE="audio"))
+  invisible(.Call(audio_wait, NULL, if(any(is.na(timeout))) -1 else as.double(timeout), PACKAGE="audio"))
 }
 
 play.default <- function(x, rate=44100, ...) {
-  a <- .Call("audio_player", x, rate, PACKAGE="audio")
-  .Call("audio_start", a, PACKAGE="audio")
+  a <- .Call(audio_player, x, rate, PACKAGE="audio")
+  .Call(audio_start, a, PACKAGE="audio")
   invisible(a)
 }
 
@@ -64,7 +64,7 @@ play.audioSample <- function(x, rate, ...) {
 
 play.audioInstance <- function(x, ...) stop("you cannot play an audio instance - try play(a$data) if a is a recorded instance")
 
-`$.audioInstance` <- function(x, name) if (isTRUE(name == "data")) .Call("audio_instance_source", x, PACKAGE="audio") else NULL
+`$.audioInstance` <- function(x, name) if (isTRUE(name == "data")) .Call(audio_instance_source, x, PACKAGE="audio") else NULL
 
 `$.audioSample` <- function(x, name) attr(x, name)
 `$<-.audioSample` <- function(x, name, value) .Primitive("attr<-")
