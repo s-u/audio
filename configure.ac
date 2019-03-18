@@ -18,6 +18,7 @@ if test -n "${PKG_CPPFLAGS}"; then
    CPPFLAGS="${CPPFLAGS} ${PKG_CPPFLAGS}"
 fi
 
+AC_LANG(C)
 AC_PROG_CC
 
 LIBS="${PKG_LIBS}"
@@ -27,7 +28,7 @@ save_LIBS="${LIBS}"
 LIBS="${LIBS} -framework AudioUnit -framework CoreServices"
 AC_MSG_CHECKING([AudioUnits])
 has_au=no
-AC_LINK_IFELSE([[#include <AudioUnit/AudioUnit.h>
+AC_LINK_IFELSE([AC_LANG_SOURCE([#include <AudioUnit/AudioUnit.h>
 int
 main ()
 {
@@ -37,10 +38,10 @@ main ()
   AudioUnitInitialize(outUnit);
   return 0;
 }
-]], [has_au=yes
+])], [has_au=yes
 AC_DEFINE(HAS_AU, 1, [defined if AudioUnits are available])],
 [## try with new API that removes Components
-AC_LINK_IFELSE([[#include <AudioUnit/AudioUnit.h>                               
+AC_LINK_IFELSE([AC_LANG_SOURCE([#include <AudioUnit/AudioUnit.h>
 int
 main ()
 {
@@ -50,7 +51,7 @@ main ()
   AudioUnitInitialize(outUnit);
   return 0;
 }
-]], [has_au=yes
+])], [has_au=yes
 AC_DEFINE(HAS_AU, 1, [defined if AudioUnits are available])
 AC_DEFINE(NEED_AUDIO_PREFIX, 1, [defined if AU Components need Audio prefix])],
 [LIBS="${save_LIBS}"])
@@ -73,7 +74,7 @@ has_pa=no
 AC_CHECK_HEADERS([portaudio.h],[
   AC_SEARCH_LIBS(Pa_Initialize, portaudio, [
 AC_MSG_CHECKING([for working PortAudio (API>=2)])
-AC_LINK_IFELSE([[#include "portaudio.h"
+AC_LINK_IFELSE([AC_LANG_SOURCE([#include "portaudio.h"
 static int paPlayCallback(const void *inputBuffer, void *outputBuffer,
  unsigned long framesPerBuffer, const PaStreamCallbackTimeInfo* timeInfo,
  PaStreamCallbackFlags statusFlags, void *userData )
@@ -86,7 +87,7 @@ main ()
   err = Pa_OpenDefaultStream(&stream,0,1,paFloat32,44100.0,1024,paPlayCallback,0);
   return 0;
 }
-]], [has_pa=yes
+])], [has_pa=yes
 AC_MSG_RESULT([yes])
 AC_DEFINE(HAS_PA, 1, [defined if PortAudio is available])
   ], [AC_MSG_RESULT([no])])

@@ -1,7 +1,9 @@
 NEWS for audio package
 
-0.1-6	(under development)
+0.1-6	2019-03-18
     o	fix RIFF chunk size which incorrectly included the header
+
+    o	minor changes to configure.ac
 
 0.1-5	2013-12-23
     o	minor documentation cleanups
