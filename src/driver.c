@@ -378,5 +378,5 @@ SEXP audio_instance_address(SEXP instance) {
 		Rf_error("invalid audio instance");
 	audio_instance_t *p = (audio_instance_t *) EXTPTR_PTR(instance);
 	if (!p) Rf_error("invalid audio instance");
-	return Rf_ScalarInteger((int) p);	
+	return Rf_ScalarInteger((int) (long) p);
 }
