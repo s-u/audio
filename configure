@@ -2040,7 +2040,8 @@ if test -z "${R_HOME}"; then
 fi
 RBIN="${R_HOME}/bin/R"
 CC=`"${RBIN}" CMD config CC`;
-CPP=`"${RBIN}" CMD config CPP`;
+## since R 3.6 R CMD config doesn't support CPP
+CPP="${CC} -E"
 CFLAGS=`"${RBIN}" CMD config CFLAGS`
 CPPFLAGS=`"${RBIN}" CMD config CPPFLAGS`
 if test -n "${PKG_CPPFLAGS}"; then
