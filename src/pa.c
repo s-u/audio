@@ -128,7 +128,7 @@ static int paPlayCallback(const void *inputBuffer, void *outputBuffer,
 	return 0;
 }
 
-static void *portaudio_create_player(SEXP source, float rate, int flags) {
+static audio_instance_t *portaudio_create_player(SEXP source, float rate, int flags) {
 	PaError err = Pa_Initialize();
 	if( err != paNoError ) Rf_error("cannot initialize audio system: %s\n", Pa_GetErrorText( err ) );
 	play_info_t *ap = (play_info_t*) calloc(sizeof(play_info_t), 1);
@@ -146,7 +146,7 @@ static void *portaudio_create_player(SEXP source, float rate, int flags) {
 	}
 	ap->loop = (flags & APFLAG_LOOP) ? YES : NO;
 	if (ap->stereo) ap->length /= 2;
-	return ap;
+	return (audio_instance_t*) ap; /* play_info_t is a superset of audio_instance_t */
 }
 
 static int portaudio_start(void *usr) {
