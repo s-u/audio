@@ -1,5 +1,8 @@
 NEWS for audio package
 
+0.1-7	2020-02-26
+    o	minor changes to remove R CMD check warnings with current R
+
 0.1-6	2019-03-18
     o	fix RIFF chunk size which incorrectly included the header
 
