@@ -64,7 +64,7 @@ AC_MSG_RESULT([${has_au}])
 if ${PKGCONFIG} --version >/dev/null 2>&1; then
    if ${PKGCONFIG} portaudio-2.0; then
       CPPFLAGS="${CPPFLAGS} `${PKGCONFIG} --cflags portaudio-2.0`"
-      LIBS="${CPPFLAGS} `${PKGCONFIG} --libs portaudio-2.0`"
+      LIBS="${LIBS} `${PKGCONFIG} --libs portaudio-2.0`"
    fi
 fi
 
@@ -94,6 +94,21 @@ AC_DEFINE(HAS_PA, 1, [defined if PortAudio is available])
   ], [AC_MSG_RESULT([no])])
   ])
 ])
+
+# find PulseAudio via pkg-config
+: ${PKGCONFIG=pkg-config}
+AC_MSG_CHECKING([for PulseAudio])
+if ${PKGCONFIG} --version >/dev/null 2>&1; then
+   if ${PKGCONFIG} libpulse-simple; then
+      CPPFLAGS="${CPPFLAGS} `${PKGCONFIG} --cflags portaudio-2.0`"
+      LIBS="${CPPFLAGS} ${LIBS} `${PKGCONFIG} --libs libpulse-simple libpulse`"
+      AC_MSG_RESULT([yes])
+      AC_DEFINE(HAS_PULSE, 1, [defined if PulseAudio is available])
+   else
+      AC_MSG_RESULT([no])
+   fi
+fi
+
 
 # in any case configure produces config.h so we want to use it
 CPPFLAGS="-DHAS_CONFIG_H=1 ${CPPFLAGS}"

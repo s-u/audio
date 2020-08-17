@@ -35,33 +35,13 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "riff.h"
 
 #define USE_RINTERNALS  /* for efficiency */
 #define R_NO_REMAP      /* to not pollute the namespace */
 
 #include <R.h>
 #include <Rinternals.h>
-
-/* WAVE file is essentially a RIFF file, hence the structures */
-
-typedef struct riff_header {
-	char riff[4]; /* RIFF */
-	unsigned int len;
-	char type[4]; /* file type (WAVE) for wav */
-} riff_header_t;
-
-typedef struct riff_chunk {
-	char rci[4];
-	unsigned int len;
-} riff_chunk_t;
-
-typedef struct wav_fmt {
-	char rci[4]; /* RIFF chunk identifier, "fmt " here */
-	unsigned int len;
-	short ver, chs;
-	unsigned int rate, bps;
-	unsigned short byps, bips;
-} wav_fmt_t;
 
 SEXP load_wave_file(SEXP src)
 {
