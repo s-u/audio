@@ -61,7 +61,7 @@ static audio_instance_t *pulseaudio_create_player(SEXP source, float rate, int f
   unsigned int size = LENGTH(ap->source) * 2;
   R_PreserveObject(ap->source);
   ap->ss.format = PA_SAMPLE_S16LE;
-  ap->ss.rate = (uint32_t) rate;
+  ap->ss.rate = (uint32_t)rate;
   ap->done = 0;
   ap->length = LENGTH(source);
   ap->stereo = 0;
@@ -76,7 +76,7 @@ static audio_instance_t *pulseaudio_create_player(SEXP source, float rate, int f
   } else {
     ap->ss.channels = 1;
   }
-  return (audio_instance_t*) ap; /* pulse_instance_t is a superset of audio_instance_t */
+  return (audio_instance_t *)ap; /* pulse_instance_t is a superset of audio_instance_t */
 }
 
 static int pulseaudio_start(void *usr) {

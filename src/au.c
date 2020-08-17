@@ -124,7 +124,7 @@ static OSStatus outputRenderProc(void *inRefCon, AudioUnitRenderActionFlags *inA
 	return noErr;
 }
 
-static au_instance_t *audiounits_create_player(SEXP source, float rate, int flags) {
+static audio_instance_t *audiounits_create_player(SEXP source, float rate, int flags) {
 	ComponentDescription desc = { kAudioUnitType_Output, kAudioUnitSubType_DefaultOutput, kAudioUnitManufacturer_Apple, 0, 0 };
 	Component comp; 
 	OSStatus err;
@@ -164,7 +164,7 @@ static au_instance_t *audiounits_create_player(SEXP source, float rate, int flag
 		Rf_error("unable to initialize default audio (%08x)", err);
 	}
 	R_PreserveObject(ap->source);
-	return ap;
+	return (audio_instance_t *)ap;
 }
 
 static int audiounits_pause(void *usr);
@@ -206,7 +206,7 @@ static OSStatus inputRenderProc(AudioDeviceID inDevice,
 	return 0;
 }
 
-static au_instance_t *audiounits_create_recorder(SEXP source, float rate, int chs, int flags) {
+static audio_instance_t *audiounits_create_recorder(SEXP source, float rate, int chs, int flags) {
 	UInt32 propsize=0;
 	OSStatus err;
 	
@@ -219,14 +219,42 @@ static au_instance_t *audiounits_create_recorder(SEXP source, float rate, int ch
 	ap->stereo = (chs == 2) ? YES : NO;
 	
 	propsize = sizeof(ap->inDev);
+#if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MIN_REQUIRED>=MAC_OS_X_VERSION_10_6)
+				{
+					AudioObjectPropertyAddress theAddress = { kAudioHardwarePropertyDefaultInputDevice,
+										kAudioObjectPropertyScopeGlobal,
+										kAudioObjectPropertyElementMaster };
+					err = AudioObjectGetPropertyData(kAudioObjectSystemObject,
+									 &theAddress,
+									 0,
+									 NULL,
+									 &propsize,
+									 &ap->inDev);
+				}
+#else
 	err = AudioHardwareGetProperty(kAudioHardwarePropertyDefaultInputDevice, &propsize, &ap->inDev);
+#endif
 	if (err) {
 		free(ap);
 		Rf_error("unable to find default audio input (%08x)", err);
 	}
 	
 	propsize = sizeof(ap->fmtIn);
+#if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MIN_REQUIRED>=MAC_OS_X_VERSION_10_6)
+				{
+					AudioObjectPropertyAddress theAddress = { kAudioDevicePropertyStreamFormat,
+										kAudioObjectPropertyScopeGlobal,
+										kAudioObjectPropertyElementMaster };
+					err = AudioObjectGetPropertyData(kAudioObjectSystemObject,
+									 &theAddress,
+									 0,
+									 NULL,
+									 &propsize,
+									 &ap->fmtIn);
+				}
+#else
 	err = AudioDeviceGetProperty(ap->inDev, 0, YES, kAudioDevicePropertyStreamFormat, &propsize, &ap->fmtIn);
+#endif
 	if (err) {
 		free(ap);
 		Rf_error("unable to retrieve audio input format (%08x)", err);
@@ -257,7 +285,7 @@ static au_instance_t *audiounits_create_recorder(SEXP source, float rate, int ch
 		INTEGER(dim)[1] = LENGTH(ap->source) / 2;
 		Rf_setAttrib(ap->source, R_DimSymbol, dim);
 	}
-	return ap;
+	return (audio_instance_t *)ap;
 }
 
 static int audiounits_start(void *usr) {
@@ -313,7 +341,7 @@ static int audiounits_resume(void *usr) {
 /* helper function - precise sleep */
 static void millisleep(double tout) {
 	struct timeval tv;
-	tv.tv_sec  = (unsigned int) tout;
+	tv.tv_sec = (unsigned int) tout;
 	tv.tv_usec = (unsigned int)((tout - ((double)tv.tv_sec)) * 1000000.0);
 	select(0, 0, 0, 0, &tv);
 }
