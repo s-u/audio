@@ -2913,7 +2913,7 @@ $as_echo "${has_au}" >&6; }
 if ${PKGCONFIG} --version >/dev/null 2>&1; then
    if ${PKGCONFIG} portaudio-2.0; then
       CPPFLAGS="${CPPFLAGS} `${PKGCONFIG} --cflags portaudio-2.0`"
-      LIBS="${CPPFLAGS} `${PKGCONFIG} --libs portaudio-2.0`"
+      LIBS="${LIBS} `${PKGCONFIG} --libs portaudio-2.0`"
    fi
 fi
 
@@ -3488,6 +3488,26 @@ fi
 fi
 
 done
+
+
+# find PulseAudio via pkg-config
+: ${PKGCONFIG=pkg-config}
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for PulseAudio" >&5
+$as_echo_n "checking for PulseAudio... " >&6; }
+if ${PKGCONFIG} --version >/dev/null 2>&1; then
+   if ${PKGCONFIG} libpulse-simple; then
+      CPPFLAGS="${CPPFLAGS} `${PKGCONFIG} --cflags portaudio-2.0`"
+      LIBS="${CPPFLAGS} ${LIBS} `${PKGCONFIG} --libs libpulse-simple libpulse`"
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAS_PULSE 1" >>confdefs.h
+
+   else
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+   fi
+fi
 
 
 # in any case configure produces config.h so we want to use it

@@ -56,6 +56,9 @@ extern audio_driver_t wmmaudio_audio_driver;
 #if HAS_PA
 extern audio_driver_t portaudio_audio_driver;
 #endif
+#if HAS_PULSE
+extern audio_driver_t pulseaudio_audio_driver;
+#endif
 #if HAS_AU
 extern audio_driver_t audiounits_audio_driver;
 #endif
@@ -98,6 +101,9 @@ static void load_default_audio_driver(int silent)
 #endif
 #if HAS_PA
 	set_audio_driver(&portaudio_audio_driver);
+#endif
+#if HAS_PULSE
+  set_audio_driver(&pulseaudio_audio_driver);
 #endif
 	/* pick the first one - it will be NULL if there are no drivers */
 	current_driver = audio_drivers.driver;

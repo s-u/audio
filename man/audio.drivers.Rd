@@ -43,7 +43,8 @@ load.audio.driver(path)
 \details{
   The audio package comes with several built-in audio drivers
   (currently "wmm": WindowsMultiMedia for MS Windows, "macosx":
-  AudioUnits for Mac OS X and "portaudio": PortAudio for unix), but it
+  AudioUnits for Mac OS X, "portaudio": PortAudio for unix,
+  and "pulseaudio": for GNU/Linux), but it
   also supports 3rd-party drivers to be loaded (e.g. from other
   packages).
 
