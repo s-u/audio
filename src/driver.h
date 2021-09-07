@@ -39,7 +39,6 @@
 #include "config.h"
 #endif
 
-#define USE_RINTERNALS  /* for efficiency */
 #define R_NO_REMAP      /* to not pollute the namespace */
 #include <R.h>
 #include <Rinternals.h>

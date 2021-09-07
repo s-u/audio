@@ -36,7 +36,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#define USE_RINTERNALS  /* for efficiency */
 #define R_NO_REMAP      /* to not pollute the namespace */
 
 #include <R.h>
@@ -67,7 +66,7 @@ SEXP load_wave_file(SEXP src)
 {
 	if (Rf_inherits(src, "connection"))
 		Rf_error("sorry, connections are not supported yet");
-	if (!isString(src) || LENGTH(src) < 1)
+	if (TYPEOF(src) != STRSXP || LENGTH(src) < 1)
 		Rf_error("invalid file name");
 	{
 		const char *fName = CHAR(STRING_ELT(src, 0));
@@ -214,7 +213,7 @@ SEXP save_wave_file(SEXP where, SEXP what) {
 	
 	if (Rf_inherits(where, "connection"))
 		Rf_error("sorry, connections are not supported yet");
-	if (!isString(where) || LENGTH(where) < 1)
+	if (TYPEOF(where) != STRSXP || LENGTH(where) < 1)
 		Rf_error("invalid file name");
 	
 	{
