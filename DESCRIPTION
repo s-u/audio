@@ -1,5 +1,5 @@
 Package: audio
-Version: 0.1-8
+Version: 0.1-9
 Title: Audio Interface for R
 Author: Simon Urbanek <simon.urbanek@r-project.org>
 Maintainer: Simon Urbanek <simon.urbanek@r-project.org>
