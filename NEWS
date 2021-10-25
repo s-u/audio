@@ -1,5 +1,11 @@
 NEWS for audio package
 
+0.1-9	2021-10-25
+    o	update autoconf to 2.71
+
+0.1-8	2021-09-08
+    o	remove the use of USE_RINTERNALS
+
 0.1-7	2020-02-26
     o	minor changes to remove R CMD check warnings with current R
 
