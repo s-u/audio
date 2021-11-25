@@ -51,6 +51,9 @@
 #define WAIT_TIMEOUT  2
 #define WAIT_ERROR   -1
 
+typedef struct audio_instance *(*create_player_t)(SEXP, float, int);
+typedef struct audio_instance *(*create_recorder_t)(SEXP, float, int, int);
+
 /* define driver structure */
 typedef struct audio_driver {
 	unsigned int length; /* length of the driver structure, i.e., sizeof(audio_driver_t) */
