@@ -1,5 +1,10 @@
 NEWS for audio package
 
+0.1-10	2021-11-25
+    o	minor changes to apease checking tools
+
+    o	remove deprecated AudioUnit calls on macOS
+
 0.1-9	2021-10-25
     o	update autoconf to 2.71
 
