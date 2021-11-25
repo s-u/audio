@@ -176,9 +176,13 @@ SEXP load_wave_file(SEXP src)
 		fclose(f);
 		Rf_protect(res);
 		{
-			Rf_setAttrib(res, Rf_install("rate"), Rf_ScalarInteger(fmt.rate));
-			Rf_setAttrib(res, Rf_install("bits"), Rf_ScalarInteger(fmt.bips));
-			Rf_setAttrib(res, Rf_install("class"), Rf_mkString("audioSample"));
+			SEXP sym = Rf_protect(Rf_install("rate"));
+			Rf_setAttrib(res, sym, Rf_ScalarInteger(fmt.rate));
+			Rf_unprotect(1);
+			sym = Rf_protect(Rf_install("bits"));
+			Rf_setAttrib(res, sym, Rf_ScalarInteger(fmt.bips));
+			Rf_unprotect(1);
+			Rf_setAttrib(res, R_ClassSymbol, Rf_mkString("audioSample"));
 			if (fmt.chs > 1) {
 				SEXP dim = Rf_allocVector(INTSXP, 2);
 				INTEGER(dim)[0] = fmt.chs;

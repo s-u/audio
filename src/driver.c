@@ -150,9 +150,9 @@ SEXP audio_drivers_list() {
 	SET_STRING_ELT(sLN, 2, Rf_mkChar("current"));
 	/* SET_STRING_ELT(sLN, 3, Rf_mkChar("author")); */
 	sRN = Rf_allocVector(INTSXP, 2);
-	Rf_setAttrib(res, R_RowNamesSymbol, sRN);
 	INTEGER(sRN)[0] = R_NaInt;
 	INTEGER(sRN)[1] = -n;
+	Rf_setAttrib(res, R_RowNamesSymbol, sRN);
 	Rf_setAttrib(res, R_ClassSymbol, Rf_mkString("data.frame"));
 	Rf_unprotect(1);
 	return res;	
@@ -238,7 +238,7 @@ SEXP audio_player(SEXP source, SEXP rate) {
 	SEXP ptr = R_MakeExternalPtr(p, R_NilValue, R_NilValue);
 	Rf_protect(ptr);
 	R_RegisterCFinalizer(ptr, audio_instance_destructor);
-	Rf_setAttrib(ptr, Rf_install("class"), Rf_mkString("audioInstance"));
+	Rf_setAttrib(ptr, R_ClassSymbol, Rf_mkString("audioInstance"));
 	Rf_unprotect(1);
 	return ptr;	
 }
@@ -260,7 +260,7 @@ SEXP audio_recorder(SEXP source, SEXP rate, SEXP channels) {
 	SEXP ptr = R_MakeExternalPtr(p, R_NilValue, R_NilValue);
 	Rf_protect(ptr);
 	R_RegisterCFinalizer(ptr, audio_instance_destructor);
-	Rf_setAttrib(ptr, Rf_install("class"), Rf_mkString("audioInstance"));
+	Rf_setAttrib(ptr, R_ClassSymbol, Rf_mkString("audioInstance"));
 	Rf_unprotect(1);
 	return ptr;
 }
