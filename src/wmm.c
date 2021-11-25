@@ -425,8 +425,8 @@ audio_driver_t wmmaudio_audio_driver = {
 	"Windows MultiMedia audio driver",
 	"Copyright(c) 2008 Simon Urbanek",
 
-	wmmaudio_create_player,
-	wmmaudio_create_recorder,
+	(create_player_t) wmmaudio_create_player,
+	(create_recorder_t) wmmaudio_create_recorder,
 	wmmaudio_start,
 	wmmaudio_pause,
 	wmmaudio_resume,

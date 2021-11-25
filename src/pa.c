@@ -244,7 +244,7 @@ audio_driver_t portaudio_audio_driver = {
 	"PortAudio driver",
 	"Copyright(c) 2008 Simon Urbanek",
 
-	portaudio_create_player,
+	(create_player_t) portaudio_create_player,
 	0, /* recorder is currently unimplemented */
 	portaudio_start,
 	portaudio_pause,
