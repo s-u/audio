@@ -209,7 +209,8 @@ static OSStatus inputRenderProc(AudioDeviceID inDevice,
 static au_instance_t *audiounits_create_recorder(SEXP source, float rate, int chs, int flags) {
 	UInt32 propsize=0;
 	OSStatus err;
-	
+	AudioObjectPropertyAddress aopAddress;
+
 	au_instance_t *ap = (au_instance_t*) calloc(sizeof(au_instance_t), 1);
 	ap->source = source;
 	ap->sample_rate = rate;
@@ -219,19 +220,26 @@ static au_instance_t *audiounits_create_recorder(SEXP source, float rate, int ch
 	ap->stereo = (chs == 2) ? YES : NO;
 	
 	propsize = sizeof(ap->inDev);
-	err = AudioHardwareGetProperty(kAudioHardwarePropertyDefaultInputDevice, &propsize, &ap->inDev);
+	aopAddress = (AudioObjectPropertyAddress) { kAudioHardwarePropertyDefaultInputDevice,
+		       kAudioObjectPropertyScopeGlobal,
+		       kAudioObjectPropertyElementMaster };
+
+	err = AudioObjectGetPropertyData(kAudioObjectSystemObject, &aopAddress, 0, NULL,
+					 &propsize, &ap->inDev);
 	if (err) {
 		free(ap);
 		Rf_error("unable to find default audio input (%08x)", err);
 	}
-	
+
 	propsize = sizeof(ap->fmtIn);
-	err = AudioDeviceGetProperty(ap->inDev, 0, YES, kAudioDevicePropertyStreamFormat, &propsize, &ap->fmtIn);
+	aopAddress = (AudioObjectPropertyAddress) { kAudioDevicePropertyStreamFormat, kAudioDevicePropertyScopeInput, 0 };
+	err = AudioObjectGetPropertyData(ap->inDev, &aopAddress, 0, NULL,
+					 &propsize, &ap->fmtIn);
 	if (err) {
 		free(ap);
 		Rf_error("unable to retrieve audio input format (%08x)", err);
 	}
-	
+
 	/* Rprintf(" recording format: %f, chs: %d, fpp: %d, bpp: %d, bpf: %d, flags: %x\n", ap->fmtIn.mSampleRate, ap->fmtIn.mChannelsPerFrame, ap->fmtIn.mFramesPerPacket, ap->fmtIn.mBytesPerPacket, ap->fmtIn.mBytesPerFrame, ap->fmtIn.mFormatFlags); */
 	
 	ap->srFrac = 1.0;
@@ -372,8 +380,8 @@ audio_driver_t audiounits_audio_driver = {
 	"macosx",
 	"AudioUnits (Mac OS X) driver",
 	"Copyright(c) 2008 Simon Urbanek",
-	audiounits_create_player,
-	audiounits_create_recorder,
+	(create_player_t) audiounits_create_player,
+	(create_recorder_t) audiounits_create_recorder,
 	audiounits_start,
 	audiounits_pause,
 	audiounits_resume,
