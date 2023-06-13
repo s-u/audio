@@ -111,7 +111,7 @@ static void audio_instance_destructor(SEXP instance) {
 	p->driver->dispose(p); /* it's driver's responsibility to dispose p */
 }
 
-SEXP audio_drivers_list() {
+SEXP audio_drivers_list(void) {
 	int n = 0;
 	SEXP res = Rf_allocVector(VECSXP, 3), sName, sDesc, /* sCopy, */ sCurr, sLN, sRN;
 	audio_driver_list_t *l = &audio_drivers;
@@ -158,7 +158,7 @@ SEXP audio_drivers_list() {
 	return res;	
 }
 
-SEXP audio_current_driver() {
+SEXP audio_current_driver(void) {
 	return current_driver ? Rf_mkString(current_driver->name) : R_NilValue;
 }
 
@@ -196,12 +196,12 @@ SEXP audio_load_driver(SEXP path) {
 	if (TYPEOF(path) == STRSXP && LENGTH(path) > 0) {
 		const char *cPath = CHAR(STRING_ELT(path, 0));
 		audio_driver_t *drv;
-		void *(*fn)();
+		void *(*fn)(void);
 		void *ad, *dl = dlopen(cPath, RTLD_LAZY | RTLD_LOCAL); /* try local first */
 		if (!dl) dl = dlopen(cPath, RTLD_LAZY | RTLD_GLOBAL); /* try global if local failed */
 		if (!dl) Rf_error("cannot load '%s' dynamically", cPath);
-		fn = dlsym(dl, "create_audio_driver");
-		if (!fn) fn = dlsym(dl, "_create_audio_driver");
+		fn = (void *(*)(void)) dlsym(dl, "create_audio_driver");
+		if (!fn) fn = (void *(*)(void)) dlsym(dl, "_create_audio_driver");
 		if (!fn) {
 			dlclose(dl);
 			Rf_error("specified module is not an audio driver");
