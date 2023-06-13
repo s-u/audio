@@ -1,5 +1,8 @@
 NEWS for audio package
 
+0.1-11	2023-06-12
+    o	silence spurious C warnings
+
 0.1-10	2021-11-25
     o	minor changes to apease checking tools
 
