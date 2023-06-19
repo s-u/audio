@@ -8,7 +8,7 @@
 }
 \description{
   \code{audioSample} is a class encapsulating digitalized (sampled)
-  audio data. Essentiually it tags numeric vectors and matrices with
+  audio data. Essentially it tags numeric vectors and matrices with
   additional audio information (most importantly sample rate).
 
   \code{audioSample} is the designated constructor of such objects.
@@ -38,13 +38,15 @@
   \method{as.audioSample}{Sample}(x, \dots)
 }
 \arguments{
-  \item{x}{object to convert or initilize with}
+  \item{x}{object to convert or initialize with}
   \item{rate}{sample rate}
   \item{bits}{resolution of the source. It doesn't affect the data
   itself and is only used for playback and export.}
   \item{clip}{boolean value determining whether the source should be
   clipped to a range between -1 and 1. Values outside this range
   result in undefined behavior.}
+  \item{normalize}{boolean value determining whether the source should be
+  normalized to a range between -1 and 1 before clipping.}
   \item{\dots}{parameters passed to the object-specific method}
 }
 \value{

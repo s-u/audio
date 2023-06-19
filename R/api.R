@@ -69,9 +69,12 @@ play.audioInstance <- function(x, ...) stop("you cannot play an audio instance -
 `$.audioSample` <- function(x, name) attr(x, name)
 `$<-.audioSample` <- function(x, name, value) .Primitive("attr<-")
 
-audioSample <- function(x, rate=44100, bits=16, clip = TRUE) {
+audioSample <- function(x, rate=44100, bits=16, clip = TRUE, normalize=FALSE) {
   if (!is.null(dim(x)) && dim(x)[1] != 1 && dim(x)[1] != 2)
     stop("invalid dimensions, audio samples must be either vectors or matrices with one (mono) or two (stereo) rows")
+  if (normalize) {
+    x <- (x + (-1 * min(x))) / max(x) - 1
+  }
   if (is.integer(x)) {
     if (isTRUE(bits == 16)) x <- x / 32767.0 else if (isTRUE(bits == 8)) x <- x / 127.0 else stop("invalid sample size, must be 8 or 16 bits")
   }
