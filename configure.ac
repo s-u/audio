@@ -26,7 +26,7 @@ LIBS="${PKG_LIBS}"
 
 # try AudioUnits
 save_LIBS="${LIBS}"
-LIBS="${LIBS} -framework AudioUnit -framework CoreServices"
+LIBS="${LIBS} -framework AudioUnit -framework CoreAudio -framework CoreServices"
 AC_MSG_CHECKING([AudioUnits])
 has_au=no
 AC_LINK_IFELSE([AC_LANG_SOURCE([#include <AudioUnit/AudioUnit.h>
