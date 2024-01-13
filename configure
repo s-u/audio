@@ -3237,7 +3237,7 @@ LIBS="${PKG_LIBS}"
 
 # try AudioUnits
 save_LIBS="${LIBS}"
-LIBS="${LIBS} -framework AudioUnit -framework CoreServices"
+LIBS="${LIBS} -framework AudioUnit -framework CoreAudio -framework CoreServices"
 { printf "%s\n" "$as_me:${as_lineno-$LINENO}: checking AudioUnits" >&5
 printf %s "checking AudioUnits... " >&6; }
 has_au=no
