@@ -214,9 +214,14 @@ static int portaudio_wait(void *usr, double timeout) {
 #if HAVE_AQUA
 		R_ProcessEvents();
 #else
+#include <Rversion.h>
+#if (R_VERSION < R_Version(4,5,0))
 		R_checkActivity(0, 0); /* FIXME: we should adjust for time spent processing events */
-#endif
 #else
+		R_CheckUserInterrupt(); /* not sure if it's sufficient ... */
+#endif /* R <4.5.0 */
+#endif /* !AQUA */
+#else  /* !unix */
 		Sleep((DWORD) (slice * 1000));
 		R_ProcessEvents();
 #endif
