@@ -16,7 +16,7 @@
   Instances of the \code{audioSample} are numeric vectors or matrices
   with the following additional attributes:
 
-  \itemize{
+  \describe{
     \item{rate}{sample rate (in Hz), mandatory}
     \item{bits}{resolution of the source (in bits), optional}
   }
