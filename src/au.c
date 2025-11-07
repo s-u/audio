@@ -256,7 +256,7 @@ static au_instance_t *audiounits_create_recorder(SEXP source, float rate, int ch
 		Rf_error("unable to register recording callback (%08x)", err);
 	}
 	R_PreserveObject(ap->source);
-	Rf_setAttrib(ap->source, Rf_install("rate"), Rf_ScalarInteger(rate)); /* we adjust the rate */
+	Rf_setAttrib(ap->source, Rf_install("rate"), Rf_ScalarInteger((int)rate)); /* we adjust the rate */
 	Rf_setAttrib(ap->source, Rf_install("bits"), Rf_ScalarInteger(16)); /* we say it's 16 because we don't know - float is always 32-bit */
 	Rf_setAttrib(ap->source, Rf_install("class"), Rf_mkString("audioSample"));
 	if (ap->stereo) {

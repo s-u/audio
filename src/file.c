@@ -89,7 +89,7 @@ SEXP load_wave_file(SEXP src)
 		}
 		to_go = rh.len;
 		while (!feof(f) && to_go >= 8) {
-			int n = fread(&rc, 1, 8, f);
+			int n = (int)fread(&rc, 1, 8, f);
 			if (n < 8) {
 				fclose(f);
 				Rf_error("incomplete file");
@@ -101,7 +101,7 @@ SEXP load_wave_file(SEXP src)
 					Rf_error("corrupt file");
 				}
 				memcpy(&fmt, &rc, 8);
-				n = fread(&fmt.ver, 1, 16, f);
+				n = (int)fread(&fmt.ver, 1, 16, f);
 				if (n < 16) {
 					fclose(f);
 					Rf_error("incomplete file");
@@ -125,7 +125,7 @@ SEXP load_wave_file(SEXP src)
 					Rf_error("unsupported smaple width: %d bits", fmt.bips);
 				}
 				res = Rf_allocVector(REALSXP, samples);
-				n = fread(d = REAL(res), st, samples, f);
+				n = (int)fread(d = REAL(res), st, samples, f);
 				if (n < samples) {
 					fclose(f);
 					Rf_error("incomplete file");
@@ -223,7 +223,7 @@ SEXP save_wave_file(SEXP where, SEXP what) {
 	{
 		const char *fName = CHAR(STRING_ELT(where, 0));
 		riff_header_t rh = { "RIFF", size + 36, "WAVE" };
-		wav_fmt_t fmt = { "fmt ", 16, 1, chs, rate, rate * bps, bps, bits };
+		wav_fmt_t fmt = { "fmt ", 16, 1, (short) chs, rate, rate * bps, (unsigned short) bps, (unsigned short) bits };
 		riff_chunk_t rc = { "data", size };
 		FILE *f = fopen(fName, "wb");
 		if (!f)
