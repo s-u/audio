@@ -43,6 +43,14 @@
 #include <sys/select.h> /* for millisleep */
 #endif
 
+#include <Rversion.h>
+#if (R_VERSION >= R_Version(2,0,0))
+#ifdef  EXTPTR_PTR
+#undef  EXTPTR_PTR
+#endif
+#define EXTPTR_PTR(X) R_ExternalPtrAddr(X)
+#endif
+
 static audio_driver_t *current_driver;
 
 typedef struct audio_driver_list {
